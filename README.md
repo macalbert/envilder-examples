@@ -34,7 +34,7 @@ That's the entire integration. [Envilder](https://envilder.com) resolves the tok
 
 Every test does the same three steps: resolve the token with the Envilder SDK, start LocalStack with it, and round-trip a `SecureString` against emulated SSM — the operation that requires a valid auth token.
 
-Testcontainers and Aspire are alternative orchestrators; pick the folder that matches your project.
+Testcontainers and Aspire are alternative orchestrators; pick the folder that matches your project. (Aspire AppHosts can also orchestrate [Python](https://aspire.dev/integrations/frameworks/python/) and JavaScript apps.)
 
 \* Needs the [Aspire CLI](https://aspire.dev) 13.2+. The test is black-box (spawns `aspire run` and waits for the health endpoint) since there's no TypeScript `Aspire.Hosting.Testing` yet.
 
