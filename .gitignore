@@ -1,0 +1,33 @@
+# Secrets — never commit resolved values
+.env
+.env.*
+
+# Node.js
+node_modules/
+
+# Aspire TypeScript AppHost (generated SDK)
+.modules/
+
+# Python
+__pycache__/
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+
+# .NET
+bin/
+obj/
+TestResults/
+*.user
+.vs/
+
+# IDEs
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db

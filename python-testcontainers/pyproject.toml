@@ -1,0 +1,16 @@
+[project]
+name = "envilder-python-testcontainers"
+version = "0.1.0"
+requires-python = ">=3.14"
+dependencies = [
+    "boto3",
+    "envilder",
+    "testcontainers[localstack]",
+]
+
+[dependency-groups]
+dev = ["boto3-stubs[ssm]", "pytest"]
+
+[tool.pytest.ini_options]
+python_classes = ["Test*"]
+python_functions = ["Should_*"]
