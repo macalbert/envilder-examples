@@ -10,7 +10,7 @@ from envilder import Envilder
 from mypy_boto3_ssm import SSMClient
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.wait_strategies import LogMessageWaitStrategy
-from testcontainers.localstack import LocalStackContainer
+from testcontainers.community.localstack import LocalStackContainer
 
 MAP_FILE = Path(__file__).parent.parent / "envilder.json"
 

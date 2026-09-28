@@ -12,7 +12,7 @@ if (!token) {
 }
 
 await builder
-  .addContainer('localstack', 'localstack/localstack', 'stable')
+  .addContainer('localstack', { image: 'localstack/localstack', tag: 'stable' })
   .withEnvironment('LOCALSTACK_AUTH_TOKEN', token)
   .withHttpEndpoint({ port: 4566, targetPort: 4566 });
 

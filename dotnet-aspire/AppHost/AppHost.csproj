@@ -1,19 +1,16 @@
-<Project Sdk="Microsoft.NET.Sdk">
-
-  <Sdk Name="Aspire.AppHost.Sdk" Version="13.4.6" />
+<!-- Aspire.AppHost.Sdk version is pinned in global.json (msbuild-sdks) -->
+<Project Sdk="Aspire.AppHost.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <IsAspireHost>true</IsAspireHost>
+    <!-- Keep NuGet-restored DCP/dashboard so `dotnet test` works without the Aspire CLI -->
+    <AspireUseCliBundle>false</AspireUseCliBundle>
+    <NoWarn>$(NoWarn);ASPIRE010</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aspire.Hosting.AppHost" Version="13.4.6" />
-    <PackageReference Include="Envilder" Version="0.4.1" />
-    <PackageReference Include="LocalStack.Aspire.Hosting" Version="13.1.0" />
+    <PackageReference Include="Envilder" />
+    <PackageReference Include="LocalStack.Aspire.Hosting" />
   </ItemGroup>
 
   <ItemGroup>

@@ -2,17 +2,25 @@
   "name": "envilder-typescript-aspire",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "start": "aspire run",
     "test": "vitest run"
   },
   "dependencies": {
-    "@envilder/sdk": "latest"
+    "@envilder/sdk": "^0.4.1",
+    "vscode-jsonrpc": "^8.2.1"
   },
   "devDependencies": {
-    "@aws-sdk/client-ssm": "^3.1075.0",
-    "@types/node": "^26.0.0",
-    "typescript": "^5.7.0",
-    "vitest": "^3.0.0"
+    "@aws-sdk/client-ssm": "^3.1141.0",
+    "@types/node": "^26.6.3",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2"
+  },
+  "allowScripts": {
+    "esbuild": true
   }
 }

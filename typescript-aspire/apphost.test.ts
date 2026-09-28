@@ -16,8 +16,17 @@ let aspire: ChildProcess;
 let ssm: SSMClient;
 
 beforeAll(async () => {
+  // `npm test` exports its config as npm_config_* env vars; the nested
+  // `npm install` that `aspire run` performs would treat them as CLI flags.
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(
+      ([key]) => !key.toLowerCase().startsWith('npm_config_'),
+    ),
+  );
+
   aspire = spawn('aspire', ['run'], {
     cwd: import.meta.dirname,
+    env,
     stdio: 'ignore',
     shell: process.platform === 'win32',
   });
