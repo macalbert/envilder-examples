@@ -55,9 +55,10 @@ it('Should_ResolveSecretFromKeyVault_When_MapFilePointsToIt', async () => {
 
   await secrets.setSecret(mapFile.mappings.get('DEMO_SECRET')!, expected);
 
+  const sut = new EnvilderClient(new AzureKeyVaultSecretProvider(secrets));
+
   // Act
-  const envilder = new EnvilderClient(new AzureKeyVaultSecretProvider(secrets));
-  const actual = await envilder.resolveSecrets(mapFile);
+  const actual = await sut.resolveSecrets(mapFile);
 
   // Assert
   expect(actual.get('DEMO_SECRET')).toBe(expected);

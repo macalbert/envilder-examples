@@ -16,9 +16,10 @@ public sealed class AzureKeyVaultTests(LowkeyVaultFixture keyVault)
 		await keyVault.Secrets.SetSecretAsync(
 			mapFile.Mappings["DEMO_SECRET"], expected, TestContext.Current.CancellationToken);
 
+		var sut = new EnvilderClient(new AzureKeyVaultSecretProvider(keyVault.Secrets));
+
 		// Act
-		var envilder = new EnvilderClient(new AzureKeyVaultSecretProvider(keyVault.Secrets));
-		var actual = await envilder.ResolveSecretsAsync(mapFile, TestContext.Current.CancellationToken);
+		var actual = await sut.ResolveSecretsAsync(mapFile, TestContext.Current.CancellationToken);
 
 		// Assert
 		actual["DEMO_SECRET"].Should().Be(expected);

@@ -38,9 +38,10 @@ public sealed class AwsSsmTests(LocalStackFixture localStack)
 			},
 			TestContext.Current.CancellationToken);
 
+		var sut = new EnvilderClient(new AwsSsmSecretProvider(localStack.Ssm));
+
 		// Act
-		var envilder = new EnvilderClient(new AwsSsmSecretProvider(localStack.Ssm));
-		var actual = await envilder.ResolveSecretsAsync(mapFile, TestContext.Current.CancellationToken);
+		var actual = await sut.ResolveSecretsAsync(mapFile, TestContext.Current.CancellationToken);
 
 		// Assert
 		actual["DEMO_SECRET"].Should().Be(expected);

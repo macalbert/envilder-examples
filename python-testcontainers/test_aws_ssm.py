@@ -3,6 +3,7 @@ import re
 import uuid
 from collections.abc import Generator
 from pathlib import Path
+from typing import Any
 from urllib.request import urlopen
 
 import boto3
@@ -40,13 +41,17 @@ def ssm(localstack: LocalStackContainer) -> SSMClient:
     )
 
 
+def get_json(url: str) -> Any:
+    with urlopen(url) as response:
+        return json.load(response)
+
+
 class TestAwsSsm:
     def Should_ActivateLicense_When_LocalStackStartsWithTokenResolvedByEnvilder(
         self, localstack: LocalStackContainer
     ) -> None:
         # Act
-        with urlopen(f"{localstack.get_url()}/_localstack/info") as response:
-            info = json.load(response)
+        info = get_json(f"{localstack.get_url()}/_localstack/info")
 
         # Assert
         assert info["is_license_activated"] is True
@@ -65,9 +70,10 @@ class TestAwsSsm:
             Overwrite=True,
         )
 
+        sut = EnvilderClient(AwsSsmSecretProvider(ssm))
+
         # Act
-        envilder = EnvilderClient(AwsSsmSecretProvider(ssm))
-        actual = envilder.resolve_secrets(map_file)
+        actual = sut.resolve_secrets(map_file)
 
         # Assert
         assert actual["DEMO_SECRET"] == expected

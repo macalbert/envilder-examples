@@ -16,8 +16,9 @@ const ssm = new SSMClient({
 
 it('Should_ActivateLicense_When_AspireStartsLocalStackWithTokenResolvedByEnvilder', async () => {
   // Act
-  const response = await fetch(`${LOCALSTACK_URL}/_localstack/info`);
-  const info = await response.json();
+  const info = await fetch(`${LOCALSTACK_URL}/_localstack/info`).then(
+    (response) => response.json(),
+  );
 
   // Assert
   expect(info.is_license_activated).toBe(true);
@@ -39,9 +40,10 @@ it('Should_ResolveSecretFromSsm_When_MapFilePointsToIt', async () => {
     }),
   );
 
+  const sut = new EnvilderClient(new AwsSsmSecretProvider(ssm));
+
   // Act
-  const envilder = new EnvilderClient(new AwsSsmSecretProvider(ssm));
-  const actual = await envilder.resolveSecrets(mapFile);
+  const actual = await sut.resolveSecrets(mapFile);
 
   // Assert
   expect(actual.get('DEMO_SECRET')).toBe(expected);

@@ -58,9 +58,10 @@ class TestAzureKeyVault:
 
         secrets.set_secret(map_file.mappings["DEMO_SECRET"], expected)
 
+        sut = EnvilderClient(AzureKeyVaultSecretProvider(secrets))
+
         # Act
-        envilder = EnvilderClient(AzureKeyVaultSecretProvider(secrets))
-        actual = envilder.resolve_secrets(map_file)
+        actual = sut.resolve_secrets(map_file)
 
         # Assert
         assert actual["DEMO_SECRET"] == expected
