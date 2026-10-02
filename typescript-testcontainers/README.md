@@ -64,5 +64,5 @@ You won't need these against real clouds:
 |------|-----|
 | `credentials: { accessKeyId: 'test', … }` | LocalStack accepts any credentials |
 | `IDENTITY_ENDPOINT` / `IDENTITY_HEADER` | `DefaultAzureCredential` gets its token from Lowkey Vault, as it would from Azure on an App Service |
-| `NODE_TLS_REJECT_UNAUTHORIZED = '0'` | Lowkey Vault uses a self-signed certificate (Node prints a warning about it, which is expected) |
+| `agent: new Agent({ rejectUnauthorized: false })` | Lowkey Vault uses a self-signed certificate; only this client skips the check |
 | `disableChallengeResourceVerification` | the vault isn't on `*.vault.azure.net` |

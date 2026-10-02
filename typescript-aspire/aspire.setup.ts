@@ -13,11 +13,16 @@ export default async function setup(): Promise<() => void> {
     ),
   );
 
-  const aspire = spawn('aspire', ['run'], {
+  // On Windows `aspire` can be a .cmd shim (dotnet tool), which only cmd.exe runs.
+  const [command, args] =
+    process.platform === 'win32'
+      ? ['cmd.exe', ['/d', '/c', 'aspire', 'run']]
+      : ['aspire', ['run']];
+
+  const aspire = spawn(command, args, {
     cwd: import.meta.dirname,
     env,
     stdio: 'ignore',
-    shell: process.platform === 'win32',
   });
 
   await waitUntilOk(`${LOCALSTACK_URL}/_localstack/health`);

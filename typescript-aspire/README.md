@@ -69,7 +69,7 @@ You won't need these against real clouds:
 | `apphost.ts` | `withHttpHealthCheck({ path: '/ping', … })` | lets Aspire know when Lowkey Vault is ready |
 | `aws-ssm.test.ts` | `credentials: { accessKeyId: 'test', … }` | LocalStack accepts any credentials |
 | `azure-key-vault.test.ts` | `IDENTITY_ENDPOINT` / `IDENTITY_HEADER` | `DefaultAzureCredential` gets its token from Lowkey Vault, as it would from Azure on an App Service |
-| `azure-key-vault.test.ts` | `NODE_TLS_REJECT_UNAUTHORIZED = '0'` | Lowkey Vault uses a self-signed certificate (Node prints a warning about it, which is expected) |
+| `azure-key-vault.test.ts` | `agent: new Agent({ rejectUnauthorized: false })` | Lowkey Vault uses a self-signed certificate; only this client skips the check |
 | `azure-key-vault.test.ts` | `disableChallengeResourceVerification` | the vault isn't on `*.vault.azure.net` |
 
 The first run generates `.modules/` and `.aspire/` (both git-ignored).

@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { Agent } from 'node:https';
 import { DefaultAzureCredential } from '@azure/identity';
 import { SecretClient } from '@azure/keyvault-secrets';
 import {
@@ -12,8 +13,8 @@ import { KEYVAULT_TOKEN_URL, KEYVAULT_URL } from './aspire.setup.js';
 process.env.IDENTITY_ENDPOINT = `${KEYVAULT_TOKEN_URL}/metadata/identity/oauth2/token`;
 process.env.IDENTITY_HEADER = 'dummy';
 
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 const secrets = new SecretClient(KEYVAULT_URL, new DefaultAzureCredential(), {
+  agent: new Agent({ rejectUnauthorized: false }),
   disableChallengeResourceVerification: true,
 });
 

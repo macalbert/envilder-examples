@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { Agent } from 'node:https';
 import { DefaultAzureCredential } from '@azure/identity';
 import { SecretClient } from '@azure/keyvault-secrets';
 import {
@@ -34,11 +35,13 @@ beforeAll(async () => {
   process.env.IDENTITY_ENDPOINT = `http://${host}:${lowkeyVault.getMappedPort(TOKEN_PORT)}/metadata/identity/oauth2/token`;
   process.env.IDENTITY_HEADER = 'dummy';
 
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
   secrets = new SecretClient(
     `https://${host}:${lowkeyVault.getMappedPort(VAULT_PORT)}`,
     new DefaultAzureCredential(),
-    { disableChallengeResourceVerification: true },
+    {
+      agent: new Agent({ rejectUnauthorized: false }),
+      disableChallengeResourceVerification: true,
+    },
   );
 }, 240_000);
 
