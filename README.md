@@ -93,7 +93,7 @@ All examples share the map files at the repo root:
 
 | File | Maps | Points at |
 |------|------|-----------|
-| [`envilder.json`](./envilder.json) | `LOCALSTACK_AUTH_TOKEN` | your **real** AWS SSM |
+| [`envilder.json`](./envilder.json) | `LOCALSTACK_AUTH_TOKEN` | your **real** AWS SSM or Azure Key Vault ([options](#store-your-localstack-token-once)) |
 | [`envilder.test.aws.json`](./envilder.test.aws.json) | `DEMO_SECRET` → an SSM path | LocalStack's SSM |
 | [`envilder.test.azure.json`](./envilder.test.azure.json) | `DEMO_SECRET` → a Key Vault secret name | Lowkey Vault |
 
@@ -120,13 +120,60 @@ Install only what the folders you want need:
 | [.NET SDK](https://dotnet.microsoft.com/download) | 10.0 (see [`global.json`](./global.json)) | `dotnet-*` |
 | [Aspire CLI](https://aspire.dev/get-started/install-cli/) | 13.5+ | `typescript-aspire` |
 
-You also need AWS credentials in `~/.aws/credentials` and a [LocalStack auth token](https://docs.localstack.cloud/aws/getting-started/auth-token/) stored in your SSM. Envilder pushes it for you, also in one command:
+### Store your LocalStack token (once)
 
-```bash
-npx envilder --push --key=LOCALSTACK_AUTH_TOKEN --value=<your-token> --secret-path=/envilder/development/localstack/authToken
+You need a [LocalStack auth token](https://docs.localstack.cloud/aws/getting-started/auth-token/) in your own cloud. Envilder resolves it from AWS SSM or Azure Key Vault: pick one, write the matching [`envilder.json`](./envilder.json), and push the token with one command.
+
+#### Option A: AWS SSM Parameter Store (default)
+
+Needs AWS credentials in `~/.aws/credentials`.
+
+```json
+{
+  "LOCALSTACK_AUTH_TOKEN": "/envilder/development/localstack/authToken"
+}
 ```
 
-Using a named AWS profile, or keeping the token in Azure Key Vault instead of SSM? Both are a `$config` block in [`envilder.json`](./envilder.json). See [providers](https://envilder.com/#providers).
+```bash
+npx envilder --push \
+  --key=LOCALSTACK_AUTH_TOKEN \
+  --value=<your-token> \
+  --secret-path=/envilder/development/localstack/authToken
+```
+
+Using a named AWS profile? Add it to `$config`, and Envilder uses it for both the push and the tests:
+
+```json
+{
+  "$config": { "provider": "aws", "profile": "my-profile" },
+  "LOCALSTACK_AUTH_TOKEN": "/envilder/development/localstack/authToken"
+}
+```
+
+#### Option B: Azure Key Vault
+
+Needs an Azure login (`az login`) with permission to read and write secrets in your vault. Key Vault secret names allow only letters, digits and dashes, so the identifier is a name, not a path:
+
+```json
+{
+  "$config": {
+    "provider": "azure",
+    "vaultUrl": "https://<your-vault>.vault.azure.net"
+  },
+  "LOCALSTACK_AUTH_TOKEN": "localstack-auth-token"
+}
+```
+
+```bash
+npx envilder --push \
+  --key=LOCALSTACK_AUTH_TOKEN \
+  --value=<your-token> \
+  --secret-path=localstack-auth-token
+```
+
+Run the push from the repo root: the CLI reads `$config` from `envilder.json` and sends the token to your vault.
+
+Nothing else changes. The tests and AppHosts call `Envilder.resolveFile('envilder.json')`, and the `$config` block decides where the token comes from. See [providers](https://envilder.com/#providers).
 
 On Apple Silicon or Windows on ARM, Lowkey Vault runs under amd64 emulation and takes about 40 s to start. The tests wait for it.
 
