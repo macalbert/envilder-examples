@@ -20,6 +20,9 @@ Plus one committed file that maps names to paths. Paths, not values, so it's saf
 }
 ```
 
+> [!IMPORTANT]
+> [`envilder.json`](./envilder.json) points at the SSM key **`/envilder/development/localstack/authToken`**. That key must exist in your AWS account and hold your LocalStack token, and you need the [AWS CLI](https://aws.amazon.com/cli/) installed and logged in. See [Store your LocalStack token](#store-your-localstack-token-once).
+
 That's the entire integration. [Envilder](https://envilder.com) resolves the token from your cloud at runtime: SSM → memory → container. No `.env`, no export, no bash script per stack. This repo shows it in five setups, for **AWS SSM** and **Azure Key Vault**.
 
 ## What the tests prove
@@ -115,6 +118,7 @@ Install only what the folders you want need:
 | Tool | Version | Used by |
 |------|---------|---------|
 | [Docker](https://www.docker.com/) | any recent | all |
+| [AWS CLI](https://aws.amazon.com/cli/), logged in | v2 | all (to read the LocalStack token from SSM) |
 | [Node.js](https://nodejs.org/) | 24 LTS or newer (see [`.nvmrc`](./.nvmrc)) | `typescript-*` |
 | [uv](https://docs.astral.sh/uv/) | any recent; it installs Python 3.14 for you | `python-testcontainers` |
 | [.NET SDK](https://dotnet.microsoft.com/download) | 10.0 (see [`global.json`](./global.json)) | `dotnet-*` |
@@ -126,7 +130,7 @@ You need a [LocalStack auth token](https://docs.localstack.cloud/aws/getting-sta
 
 #### Option A: AWS SSM Parameter Store (default)
 
-Needs AWS credentials in `~/.aws/credentials`.
+Needs the [AWS CLI](https://aws.amazon.com/cli/) installed and logged in (`aws configure` or `aws sso login`), so Envilder can read and write `/envilder/development/localstack/authToken`.
 
 ```json
 {

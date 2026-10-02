@@ -6,6 +6,8 @@
 dotnet test
 ```
 
+> **Before you run:** [`envilder.json`](../envilder.json) maps `LOCALSTACK_AUTH_TOKEN` to the SSM key `/envilder/development/localstack/authToken`, so that key must hold your LocalStack token in your AWS account, and you need the [AWS CLI](https://aws.amazon.com/cli/) installed and logged in (`aws configure` or `aws sso login`). See [Store your LocalStack token](../README.md#store-your-localstack-token-once).
+
 ## What happens when you run it
 
 ```mermaid
@@ -50,8 +52,8 @@ var secrets = await Env.ResolveFileAsync("envilder.test.aws.json");
 The tests need that client aimed at an emulator, so they build it themselves and hand it to Envilder:
 
 ```csharp
-var envilder = new EnvilderClient(new AwsSsmSecretProvider(localStack.Ssm));
-var secrets = await envilder.ResolveSecretsAsync(mapFile);
+var sut = new EnvilderClient(new AwsSsmSecretProvider(localStack.Ssm));
+var secrets = await sut.ResolveSecretsAsync(mapFile);
 ```
 
 Everything after that line is the same code your app runs.
