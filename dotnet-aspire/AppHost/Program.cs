@@ -13,8 +13,10 @@ foreach (var (key, value) in await Env.ResolveFileAsync("envilder.json"))
 	localstack.WithEnvironment(key, value);
 }
 
-// Add your AWS resources / projects as usual and wire them to LocalStack
-// var api = builder.AddProject<Projects.MyApi>("api");
-// builder.UseLocalStack(localstack);
+builder.AddContainer("keyvault", "nagyesta/lowkey-vault", "7.1.61")
+	.WithEnvironment("LOWKEY_ARGS", "--server.port=8443 --LOWKEY_VAULT_RELAXED_PORTS=true")
+	.WithHttpsEndpoint(targetPort: 8443, name: "vault")
+	.WithHttpEndpoint(targetPort: 8080, name: "token")
+	.WithHttpHealthCheck("/ping", endpointName: "token");
 
 builder.Build().Run();

@@ -1,6 +1,6 @@
 # Envilder Examples
 
-How much code does it take to feed a secret from AWS SSM into a LocalStack container — with nothing on disk and nothing committed?
+How much code does it take to feed a secret from AWS SSM into a LocalStack container, with nothing on disk and nothing committed?
 
 This much:
 
@@ -12,15 +12,64 @@ const localstack = await new LocalstackContainer('localstack/localstack:stable')
   .start();
 ```
 
-Plus one committed file that maps names to paths — paths, not values, so it's safe in Git:
+Plus one committed file that maps names to paths. Paths, not values, so it's safe in Git:
 
 ```json
 {
-  "LOCALSTACK_AUTH_TOKEN": "/demo/localstack/auth-token"
+  "LOCALSTACK_AUTH_TOKEN": "/envilder/development/localstack/authToken"
 }
 ```
 
-That's the entire integration. [Envilder](https://envilder.com) resolves the token from your cloud at runtime: SSM → memory → container. No `.env`, no export, no bash script per stack. This repo shows the same two lines in five setups.
+That's the entire integration. [Envilder](https://envilder.com) resolves the token from your cloud at runtime: SSM → memory → container. No `.env`, no export, no bash script per stack. This repo shows it in five setups, for **AWS SSM** and **Azure Key Vault**.
+
+## What the tests prove
+
+Every example tells the same two stories.
+
+### 1. Envilder hands your containers their secrets
+
+LocalStack refuses to start its Pro features without an auth token. Envilder fetches it from your **real** AWS account and passes it straight into the container:
+
+```mermaid
+flowchart LR
+    map["📄 envilder.json<br/><code>LOCALSTACK_AUTH_TOKEN → /envilder/…/authToken</code>"]
+    ssm[("☁️ AWS SSM<br/>(real)")]
+    envilder(["⚙️ Envilder"])
+    localstack["🐳 LocalStack"]
+
+    map -- "which secret?" --> envilder
+    ssm -- "the token" --> envilder
+    envilder -- "env var, in memory" --> localstack
+    localstack -. "is_license_activated: true ✅" .-> test["🧪 test"]
+```
+
+Test: `Should_ActivateLicense_When_…StartsLocalStackWithTokenResolvedByEnvilder`. It passes only if Envilder found the real token and LocalStack accepted it.
+
+### 2. Envilder turns a map file into environment variables
+
+The same test, once per cloud. It stores a random value where the map file points, asks Envilder to resolve the map file, and checks that the value matches:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant T as 🧪 Test
+    participant S as 🐳 Emulated store<br/>LocalStack SSM · Lowkey Vault
+    participant E as ⚙️ Envilder
+
+    Note over T: Arrange
+    T->>S: put a random value at the path in envilder.test.*.json
+    Note over T,E: Act
+    T->>E: resolve envilder.test.*.json
+    E->>S: get the secret
+    S-->>E: random value
+    E-->>T: { DEMO_SECRET: random value }
+    Note over T: Assert
+    T->>T: DEMO_SECRET == random value ✅
+```
+
+Tests: `Should_ResolveSecretFromSsm_When_MapFilePointsToIt` and `Should_ResolveSecretFromKeyVault_When_MapFilePointsToIt`. A fresh random value on every run means a pass can only come from what Envilder just read.
+
+> **The one line that differs from production.** In your app you write `Env.ResolveFileAsync("envilder.json")` and Envilder builds the cloud client for you. The tests build that client themselves, aimed at the emulator, and pass it to `EnvilderClient`. Everything after that line is the exact code your app runs.
 
 ## The examples
 
@@ -32,13 +81,32 @@ That's the entire integration. [Envilder](https://envilder.com) resolves the tok
 | [`dotnet-aspire/`](./dotnet-aspire) | Aspire AppHost + `Aspire.Hosting.Testing` | `cd AppHost.Tests && dotnet test` |
 | [`typescript-aspire/`](./typescript-aspire) | Aspire [TypeScript AppHost](https://devblogs.microsoft.com/aspire/aspire-typescript-apphost/) | `npm install && npm test` * |
 
-Each folder is self-contained: there is no `package.json` at the repo root, so run the command inside the folder. The two .NET examples also share a solution, so `dotnet test` from the repo root runs all of them.
-
-Every test does the same three steps: resolve the token with the Envilder SDK, start LocalStack with it, and round-trip a `SecureString` against emulated SSM — the operation that requires a valid auth token.
+Each folder has its own README with the order to read its files in. Each folder is self-contained: there is no `package.json` at the repo root, so run the command inside the folder. The two .NET examples also share a solution, so `dotnet test` from the repo root runs both.
 
 Testcontainers and Aspire are alternative orchestrators; pick the folder that matches your project. (Aspire AppHosts can also orchestrate [Python](https://aspire.dev/integrations/frameworks/python/) and JavaScript apps.)
 
-* Needs the [Aspire CLI](https://aspire.dev) 13.5+. The test is black-box (spawns `aspire run` and waits for the health endpoint) since there's no TypeScript `Aspire.Hosting.Testing` yet. The first run generates `.modules/` and `.aspire/` (both git-ignored).
+\* Needs the [Aspire CLI](https://aspire.dev) 13.5+. There's no TypeScript `Aspire.Hosting.Testing` yet, so the tests spawn `aspire run` and wait for the emulators to answer. The first run generates `.modules/` and `.aspire/` (both git-ignored).
+
+### The map files
+
+All examples share the map files at the repo root:
+
+| File | Maps | Points at |
+|------|------|-----------|
+| [`envilder.json`](./envilder.json) | `LOCALSTACK_AUTH_TOKEN` | your **real** AWS SSM |
+| [`envilder.test.aws.json`](./envilder.test.aws.json) | `DEMO_SECRET` → an SSM path | LocalStack's SSM |
+| [`envilder.test.azure.json`](./envilder.test.azure.json) | `DEMO_SECRET` → a Key Vault secret name | Lowkey Vault |
+
+The two `test` files only differ in `$config.provider` and in the shape of the identifier: SSM uses paths (`/a/b`), Key Vault uses names (`a-b`).
+
+### The emulators
+
+| Cloud | Emulator | Needs |
+|-------|----------|-------|
+| AWS SSM | [LocalStack](https://localstack.cloud) | an auth token (fetched by Envilder, see story 1) |
+| Azure Key Vault | [Lowkey Vault](https://github.com/nagyesta/lowkey-vault) | nothing: free and offline |
+
+Lowkey Vault serves HTTPS with a self-signed certificate and hands out fake Azure tokens on a second port. Each folder's README lists the few lines that deal with that. You won't need them against real Azure.
 
 ## Before you run (once)
 
@@ -48,17 +116,19 @@ Install only what the folders you want need:
 |------|---------|---------|
 | [Docker](https://www.docker.com/) | any recent | all |
 | [Node.js](https://nodejs.org/) | 24 LTS or newer (see [`.nvmrc`](./.nvmrc)) | `typescript-*` |
-| [uv](https://docs.astral.sh/uv/) | any recent — it installs Python 3.14 for you | `python-testcontainers` |
+| [uv](https://docs.astral.sh/uv/) | any recent; it installs Python 3.14 for you | `python-testcontainers` |
 | [.NET SDK](https://dotnet.microsoft.com/download) | 10.0 (see [`global.json`](./global.json)) | `dotnet-*` |
 | [Aspire CLI](https://aspire.dev/get-started/install-cli/) | 13.5+ | `typescript-aspire` |
 
-You also need AWS credentials in `~/.aws/credentials` and a [LocalStack auth token](https://docs.localstack.cloud/aws/getting-started/auth-token/) stored in your SSM. Envilder pushes it for you — also one command:
+You also need AWS credentials in `~/.aws/credentials` and a [LocalStack auth token](https://docs.localstack.cloud/aws/getting-started/auth-token/) stored in your SSM. Envilder pushes it for you, also in one command:
 
 ```bash
-npx envilder --push --key=LOCALSTACK_AUTH_TOKEN   --value=<your-token> --secret-path=/demo/localstack/auth-token
+npx envilder --push --key=LOCALSTACK_AUTH_TOKEN --value=<your-token> --secret-path=/envilder/development/localstack/authToken
 ```
 
-Using a named AWS profile, or keeping the token in Azure Key Vault instead of SSM? Both are a `$config` block in [`envilder.json`](./envilder.json) — see [providers](https://envilder.com/#providers).
+Using a named AWS profile, or keeping the token in Azure Key Vault instead of SSM? Both are a `$config` block in [`envilder.json`](./envilder.json). See [providers](https://envilder.com/#providers).
+
+On Apple Silicon or Windows on ARM, Lowkey Vault runs under amd64 emulation and takes about 40 s to start. The tests wait for it.
 
 ## Updating dependencies
 

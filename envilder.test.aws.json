@@ -1,0 +1,6 @@
+{
+  "$config": {
+    "provider": "aws"
+  },
+  "DEMO_SECRET": "/envilder-examples/demo-secret"
+}

@@ -1,3 +1,3 @@
 {
-  "LOCALSTACK_AUTH_TOKEN": "/demo/localstack/auth-token"
+  "LOCALSTACK_AUTH_TOKEN": "/envilder/development/localstack/authToken"
 }

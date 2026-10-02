@@ -3,6 +3,8 @@ name = "envilder-python-testcontainers"
 version = "0.1.0"
 requires-python = ">=3.14"
 dependencies = [
+    "azure-identity",
+    "azure-keyvault-secrets",
     "boto3",
     "envilder",
     "testcontainers[localstack]",
@@ -14,3 +16,5 @@ dev = ["boto3-stubs[ssm]", "pytest"]
 [tool.pytest.ini_options]
 python_classes = ["Test*"]
 python_functions = ["Should_*"]
+# Lowkey Vault uses a self-signed certificate on purpose; no need to warn about it
+filterwarnings = ["ignore::urllib3.exceptions.InsecureRequestWarning"]

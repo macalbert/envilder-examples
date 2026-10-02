@@ -1,0 +1,6 @@
+{
+  "$config": {
+    "provider": "azure"
+  },
+  "DEMO_SECRET": "envilder-examples-demo-secret"
+}

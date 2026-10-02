@@ -16,4 +16,14 @@ await builder
   .withEnvironment('LOCALSTACK_AUTH_TOKEN', token)
   .withHttpEndpoint({ port: 4566, targetPort: 4566 });
 
+await builder
+  .addContainer('keyvault', { image: 'nagyesta/lowkey-vault', tag: '7.1.61' })
+  .withEnvironment(
+    'LOWKEY_ARGS',
+    '--server.port=8443 --LOWKEY_VAULT_RELAXED_PORTS=true',
+  )
+  .withHttpsEndpoint({ port: 8443, targetPort: 8443, name: 'vault' })
+  .withHttpEndpoint({ port: 8080, targetPort: 8080, name: 'token' })
+  .withHttpHealthCheck({ path: '/ping', endpointName: 'token' });
+
 await builder.build().run();

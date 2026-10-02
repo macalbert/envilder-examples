@@ -14,7 +14,9 @@
     "vscode-jsonrpc": "^8.2.1"
   },
   "devDependencies": {
-    "@aws-sdk/client-ssm": "^3.1141.0",
+    "@aws-sdk/client-ssm": "^3.1145.0",
+    "@azure/identity": "^4.13.3",
+    "@azure/keyvault-secrets": "^4.11.2",
     "@types/node": "^26.6.3",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",

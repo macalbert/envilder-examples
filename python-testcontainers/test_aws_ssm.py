@@ -1,24 +1,27 @@
 import json
 import re
+import uuid
 from collections.abc import Generator
 from pathlib import Path
 from urllib.request import urlopen
 
 import boto3
 import pytest
-from envilder import Envilder
+from envilder import AwsSsmSecretProvider, Envilder, EnvilderClient, MapFileParser
 from mypy_boto3_ssm import SSMClient
+from testcontainers.community.localstack import LocalStackContainer
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.wait_strategies import LogMessageWaitStrategy
-from testcontainers.community.localstack import LocalStackContainer
 
-MAP_FILE = Path(__file__).parent.parent / "envilder.json"
+ROOT = Path(__file__).parent.parent
 
 
 @pytest.fixture(scope="module")
 def localstack() -> Generator[LocalStackContainer, None, None]:
+    secrets = Envilder.resolve_file(str(ROOT / "envilder.json"))
+
     container = LocalStackContainer("localstack/localstack:stable")
-    container.env.update(Envilder.resolve_file(str(MAP_FILE)))
+    container.env.update(secrets)
 
     container.waiting_for(LogMessageWaitStrategy(re.compile(r"Ready\.")))
     DockerContainer.start(container)
@@ -37,27 +40,34 @@ def ssm(localstack: LocalStackContainer) -> SSMClient:
     )
 
 
-class TestLocalStackSecrets:
-    def Should_ReportSsmService_When_LocalStackIsRunning(
+class TestAwsSsm:
+    def Should_ActivateLicense_When_LocalStackStartsWithTokenResolvedByEnvilder(
         self, localstack: LocalStackContainer
     ) -> None:
         # Act
-        with urlopen(f"{localstack.get_url()}/_localstack/health") as response:
-            health = json.load(response)
+        with urlopen(f"{localstack.get_url()}/_localstack/info") as response:
+            info = json.load(response)
 
         # Assert
-        assert health["services"]["ssm"] in ("available", "running")
+        assert info["is_license_activated"] is True
 
-    def Should_RoundTripSecureString_When_LocalStackStartsWithResolvedToken(
+    def Should_ResolveSecretFromSsm_When_MapFilePointsToIt(
         self, ssm: SSMClient
     ) -> None:
         # Arrange
+        map_file = MapFileParser().parse((ROOT / "envilder.test.aws.json").read_text())
+        expected = str(uuid.uuid4())
+
         ssm.put_parameter(
-            Name="/demo/secret", Value="hunter2", Type="SecureString"
+            Name=map_file.mappings["DEMO_SECRET"],
+            Value=expected,
+            Type="SecureString",
+            Overwrite=True,
         )
 
         # Act
-        actual = ssm.get_parameter(Name="/demo/secret", WithDecryption=True)
+        envilder = EnvilderClient(AwsSsmSecretProvider(ssm))
+        actual = envilder.resolve_secrets(map_file)
 
         # Assert
-        assert actual["Parameter"].get("Value") == "hunter2"
+        assert actual["DEMO_SECRET"] == expected
