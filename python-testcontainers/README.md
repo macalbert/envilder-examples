@@ -65,7 +65,7 @@ You won't need these against real clouds:
 |------|-----|
 | `aws_access_key_id="test"`, … | LocalStack accepts any credentials |
 | `LOCALSTACK_AUTH_TOKEN` | LocalStack for Azure needs the same token as the AWS emulator, resolved with Envilder |
-| fixed host port, `GATEWAY_LISTEN`, `LOCALSTACK_HOST` | vault URLs embed the gateway port, so a free host port is bound to the same container port |
+| a free host port bound to the same container port, `GATEWAY_LISTEN`, `LOCALSTACK_HOST` | vault URLs embed the gateway port, so both ports must match |
 | `ClientSecretCredential("any-app", "dummy")` with `disable_instance_discovery=True` | the emulator accepts a placeholder service principal (all-zero tenant and subscription) on `https://azure.localhost.localstack.cloud:<port>` |
 | resource group and vault created through ARM | the emulator starts empty, so the test creates the vault and uses the returned `vaultUri` |
 | `IDENTITY_ENDPOINT` / `IDENTITY_HEADER` | a tiny local token endpoint lets `DefaultAzureCredential` work through managed identity, as on an App Service; competing `AZURE_*` variables are cleared while it runs |
