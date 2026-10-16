@@ -101,6 +101,7 @@ Worth knowing, from the [exec docs](https://github.com/macalbert/envilder/blob/m
 | [`dotnet-testcontainers/`](./dotnet-testcontainers) | xUnit v3 + Testcontainers | `dotnet test` |
 | [`dotnet-aspire/`](./dotnet-aspire) | Aspire AppHost + `Aspire.Hosting.Testing` | `cd AppHost.Tests && dotnet test` |
 | [`typescript-aspire/`](./typescript-aspire) | Aspire [TypeScript AppHost](https://devblogs.microsoft.com/aspire/aspire-typescript-apphost/) | `npm install && npm test` * |
+| [`cli/`](./cli) | `npx envilder` push, pull and exec, from a computer with nothing installed | follow the [README](./cli/README.md) |
 
 Each folder has its own README with the order to read its files in. Each folder is self-contained: there is no `package.json` at the repo root, so run the command inside the folder. The two .NET examples also share a solution, so `dotnet test` from the repo root runs both.
 
