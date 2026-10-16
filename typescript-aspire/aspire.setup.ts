@@ -1,8 +1,8 @@
 import { spawn, spawnSync } from 'node:child_process';
 
 export const LOCALSTACK_URL = 'http://localhost:4566';
-export const KEYVAULT_URL = 'https://localhost:8443';
-export const KEYVAULT_TOKEN_URL = 'http://localhost:8080';
+export const AZURE_PORT = 4577;
+export const LOCALSTACK_AZURE_URL = `http://localhost:${AZURE_PORT}`;
 
 export default async function setup(): Promise<() => void> {
   // `npm test` exports its config as npm_config_* env vars; the nested
@@ -26,7 +26,7 @@ export default async function setup(): Promise<() => void> {
   });
 
   await waitUntilOk(`${LOCALSTACK_URL}/_localstack/health`);
-  await waitUntilOk(`${KEYVAULT_TOKEN_URL}/ping`);
+  await waitUntilOk(`${LOCALSTACK_AZURE_URL}/_localstack/health`);
 
   return () => {
     if (process.platform === 'win32') {

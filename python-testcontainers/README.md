@@ -1,6 +1,6 @@
 # Python + Testcontainers
 
-**pytest · Testcontainers · uv · LocalStack · Lowkey Vault**
+**pytest · Testcontainers · uv · LocalStack · LocalStack for Azure**
 
 ```bash
 uv run pytest
@@ -18,12 +18,13 @@ flowchart LR
 
     subgraph docker["🐳 Docker, started by Testcontainers"]
         localstack["LocalStack<br/><i>emulated SSM</i>"]
-        lowkey["Lowkey Vault<br/><i>emulated Key Vault</i>"]
+        azurelocal["LocalStack for Azure<br/><i>emulated Key Vault</i>"]
     end
 
     token -- "Envilder.resolve_file('envilder.json')" --> localstack
+    token -- "same token" --> azurelocal
     aws["🧪 test_aws_ssm.py"] --> localstack
-    azure["🧪 test_azure_key_vault.py"] --> lowkey
+    azure["🧪 test_azure_key_vault.py"] --> azurelocal
 ```
 
 Three tests, two stories (see the [root README](../README.md#what-the-tests-prove)):
@@ -37,7 +38,7 @@ Three tests, two stories (see the [root README](../README.md#what-the-tests-prov
 ## Read the code in this order
 
 1. **[`test_aws_ssm.py`](./test_aws_ssm.py)**: the `localstack` fixture is the whole integration in two statements, `Envilder.resolve_file(...)` and `container.env.update(secrets)`. Then come the first two tests. In the second, look at the `Act` block: that is everything Envilder does.
-2. **[`test_azure_key_vault.py`](./test_azure_key_vault.py)** is the same test against Key Vault. Its `secrets` fixture is emulator plumbing, so skim it. The test itself only changes the map file and the client.
+2. **[`test_azure_key_vault.py`](./test_azure_key_vault.py)** is the same test against Key Vault. Its `secrets` fixture resolves the same token, and the emulator plumbing lives in [`localstack_azure.py`](./localstack_azure.py), so skim it. The test itself only changes the map file and the client.
 
 ## The line to look at
 
@@ -63,7 +64,10 @@ You won't need these against real clouds:
 | What | Why |
 |------|-----|
 | `aws_access_key_id="test"`, … | LocalStack accepts any credentials |
-| `IDENTITY_ENDPOINT` / `IDENTITY_HEADER` | `DefaultAzureCredential` gets its token from Lowkey Vault, as it would from Azure on an App Service |
-| `connection_verify=False` | Lowkey Vault uses a self-signed certificate (the warning is silenced in `pyproject.toml`) |
-| `verify_challenge_resource=False` | the vault isn't on `*.vault.azure.net` |
-| `api_version="7.6"` | the newest Key Vault API version Lowkey Vault speaks |
+| `LOCALSTACK_AUTH_TOKEN` | LocalStack for Azure needs the same token as the AWS emulator, resolved with Envilder |
+| fixed host port, `GATEWAY_LISTEN`, `LOCALSTACK_HOST` | vault URLs embed the gateway port, so a free host port is bound to the same container port |
+| `ClientSecretCredential("any-app", "dummy")` with `disable_instance_discovery=True` | the emulator accepts a placeholder service principal (all-zero tenant and subscription) on `https://azure.localhost.localstack.cloud:<port>` |
+| resource group and vault created through ARM | the emulator starts empty, so the test creates the vault and uses the returned `vaultUri` |
+| `IDENTITY_ENDPOINT` / `IDENTITY_HEADER` | a tiny local token endpoint lets `DefaultAzureCredential` work through managed identity, as on an App Service; competing `AZURE_*` variables are cleared while it runs |
+
+TLS verification and Key Vault challenge resource verification stay enabled: the emulator serves a trusted certificate on `*.vault.azure.localhost.localstack.cloud`.

@@ -56,7 +56,7 @@ The same test, once per cloud. It stores a random value where the map file point
 sequenceDiagram
     autonumber
     participant T as 🧪 Test
-    participant S as 🐳 Emulated store<br/>LocalStack SSM · Lowkey Vault
+    participant S as 🐳 Emulated store<br/>LocalStack for AWS · LocalStack for Azure
     participant E as ⚙️ Envilder
 
     Note over T: Arrange
@@ -80,7 +80,7 @@ No code at all? [`envilder exec`](https://github.com/macalbert/envilder/blob/mai
 
 ```bash
 # SSM -> memory -> container, in one line (from the repo root)
-npx envilder exec docker run --rm --env LOCALSTACK_AUTH_TOKEN -p 4566:4566 localstack/localstack:stable
+npx envilder exec docker run --rm --env LOCALSTACK_AUTH_TOKEN localstack/localstack:stable
 ```
 
 That's it: no `.env`, no export, no script. `--env LOCALSTACK_AUTH_TOKEN` (no `=value`) tells Docker to copy the variable from the environment Envilder just built, so the token never touches the disk or the command line. Ctrl+C stops it and `--rm` cleans up the container. Needs Docker and the same SSM token as the rest of the repo.
@@ -117,7 +117,7 @@ All examples share the map files at the repo root:
 |------|------|-----------|
 | [`envilder.json`](./envilder.json) | `LOCALSTACK_AUTH_TOKEN` | your **real** AWS SSM or Azure Key Vault ([options](#store-your-localstack-token-once)) |
 | [`envilder.test.aws.json`](./envilder.test.aws.json) | `DEMO_SECRET` → an SSM path | LocalStack's SSM |
-| [`envilder.test.azure.json`](./envilder.test.azure.json) | `DEMO_SECRET` → a Key Vault secret name | Lowkey Vault |
+| [`envilder.test.azure.json`](./envilder.test.azure.json) | `DEMO_SECRET` → a Key Vault secret name | LocalStack for Azure |
 
 The two `test` files only differ in `$config.provider` and in the shape of the identifier: SSM uses paths (`/a/b`), Key Vault uses names (`a-b`).
 
@@ -126,9 +126,9 @@ The two `test` files only differ in `$config.provider` and in the shape of the i
 | Cloud | Emulator | Needs |
 |-------|----------|-------|
 | AWS SSM | [LocalStack](https://localstack.cloud) | an auth token (fetched by Envilder, see story 1) |
-| Azure Key Vault | [Lowkey Vault](https://github.com/nagyesta/lowkey-vault) | nothing: free and offline |
+| Azure Key Vault | [LocalStack for Azure](https://docs.localstack.cloud/azure/) | the same auth token (fetched by Envilder, see story 1) |
 
-Lowkey Vault serves HTTPS with a self-signed certificate and hands out fake Azure tokens on a second port. Each folder's README lists the few lines that deal with that. You won't need them against real Azure.
+LocalStack for Azure starts empty, so the tests create a vault through its Resource Manager API and sign in with a placeholder service principal, through a small local token endpoint. Each folder's README lists the few lines that deal with that. You won't need them against real Azure.
 
 ## Before you run (once)
 
@@ -197,8 +197,6 @@ npx envilder --push \
 Run the push from the repo root: the CLI reads `$config` from `envilder.json` and sends the token to your vault.
 
 Nothing else changes. The tests and AppHosts call `Envilder.resolveFile('envilder.json')`, and the `$config` block decides where the token comes from. See [providers](https://envilder.com/#providers).
-
-On Apple Silicon or Windows on ARM, Lowkey Vault runs under amd64 emulation and takes about 40 s to start. The tests wait for it.
 
 ## Updating dependencies
 

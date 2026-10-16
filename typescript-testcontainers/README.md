@@ -1,6 +1,6 @@
 # TypeScript + Testcontainers
 
-**Vitest · Testcontainers · LocalStack · Lowkey Vault**
+**Vitest · Testcontainers · LocalStack (AWS and Azure)**
 
 ```bash
 npm install && npm test
@@ -18,12 +18,13 @@ flowchart LR
 
     subgraph docker["🐳 Docker, started by Testcontainers"]
         localstack["LocalStack<br/><i>emulated SSM</i>"]
-        lowkey["Lowkey Vault<br/><i>emulated Key Vault</i>"]
+        localstackAzure["LocalStack for Azure<br/><i>emulated Key Vault</i>"]
     end
 
     token -- "Envilder.resolveFile('../envilder.json')" --> localstack
+    token -- "same token" --> localstackAzure
     aws["🧪 aws-ssm.test.ts"] --> localstack
-    azure["🧪 azure-key-vault.test.ts"] --> lowkey
+    azure["🧪 azure-key-vault.test.ts"] --> localstackAzure
 ```
 
 Three tests, two stories (see the [root README](../README.md#what-the-tests-prove)):
@@ -37,7 +38,7 @@ Three tests, two stories (see the [root README](../README.md#what-the-tests-prov
 ## Read the code in this order
 
 1. **[`aws-ssm.test.ts`](./aws-ssm.test.ts)**: the `beforeAll` is the whole integration in two statements, `Envilder.resolveFile(...)` and `.withEnvironment(...)`. Then come the first two tests. In the second, look at the `Act` block: that is everything Envilder does.
-2. **[`azure-key-vault.test.ts`](./azure-key-vault.test.ts)** is the same test against Key Vault. Its `beforeAll` is emulator plumbing, so skim it. The test itself only changes the map file and the client.
+2. **[`azure-key-vault.test.ts`](./azure-key-vault.test.ts)** is the same test against Key Vault. The emulator plumbing lives in [`localstack-azure.ts`](./localstack-azure.ts), so skim it. The test itself only changes the map file and the client.
 
 ## The line to look at
 
@@ -63,6 +64,6 @@ You won't need these against real clouds:
 | What | Why |
 |------|-----|
 | `credentials: { accessKeyId: 'test', … }` | LocalStack accepts any credentials |
-| `IDENTITY_ENDPOINT` / `IDENTITY_HEADER` | `DefaultAzureCredential` gets its token from Lowkey Vault, as it would from Azure on an App Service |
-| `agent: new Agent({ rejectUnauthorized: false })` | Lowkey Vault uses a self-signed certificate; only this client skips the check |
-| `disableChallengeResourceVerification` | the vault isn't on `*.vault.azure.net` |
+| `IDENTITY_ENDPOINT` / `IDENTITY_HEADER` | `DefaultAzureCredential` gets its token from a tiny local server, as it would from Azure on an App Service. The emulator hands out tokens to a placeholder service principal (`any-app`) |
+| `GATEWAY_LISTEN` / `LOCALSTACK_HOST` | vault URLs (`https://<vault>.vault.azure.localhost.localstack.cloud:<port>`) embed the emulator port, so the host port must match the container port |
+| a vault created through the Resource Manager API | the emulator starts empty; in Azure you would already have one |

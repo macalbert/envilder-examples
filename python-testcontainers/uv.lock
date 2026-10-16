@@ -358,6 +358,7 @@ dependencies = [
     { name = "azure-keyvault-secrets" },
     { name = "boto3" },
     { name = "envilder" },
+    { name = "requests" },
     { name = "testcontainers", extra = ["localstack"] },
 ]
 
@@ -373,6 +374,7 @@ requires-dist = [
     { name = "azure-keyvault-secrets" },
     { name = "boto3" },
     { name = "envilder" },
+    { name = "requests", specifier = ">=2.34.2" },
     { name = "testcontainers", extras = ["localstack"] },
 ]
 

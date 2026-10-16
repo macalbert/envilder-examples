@@ -1,4 +1,3 @@
-import os
 import uuid
 from collections.abc import Generator
 from pathlib import Path
@@ -6,46 +5,19 @@ from pathlib import Path
 import pytest
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
-from envilder import AzureKeyVaultSecretProvider, EnvilderClient, MapFileParser
-from testcontainers.core.container import DockerContainer
-from testcontainers.core.wait_strategies import LogMessageWaitStrategy
+from envilder import AzureKeyVaultSecretProvider, Envilder, EnvilderClient, MapFileParser
+
+from localstack_azure import localstack_azure_key_vault
 
 ROOT = Path(__file__).parent.parent
-
-VAULT_PORT = 8443
-TOKEN_PORT = 8080
 
 
 @pytest.fixture(scope="module")
 def secrets() -> Generator[SecretClient, None, None]:
-    container = (
-        DockerContainer("nagyesta/lowkey-vault:7.1.61")
-        .with_exposed_ports(VAULT_PORT, TOKEN_PORT)
-        .with_env("LOWKEY_ARGS", "--server.port=8443 --LOWKEY_VAULT_RELAXED_PORTS=true")
-        .waiting_for(
-            LogMessageWaitStrategy("Started LowkeyVaultApp").with_startup_timeout(180)
-        )
-    )
-    container.start()
+    token = Envilder.resolve_file(str(ROOT / "envilder.json"))
 
-    host = container.get_container_host_ip()
-
-    os.environ["IDENTITY_ENDPOINT"] = (
-        f"http://{host}:{container.get_exposed_port(TOKEN_PORT)}/metadata/identity/oauth2/token"
-    )
-    os.environ["IDENTITY_HEADER"] = "dummy"
-
-    yield SecretClient(
-        vault_url=f"https://{host}:{container.get_exposed_port(VAULT_PORT)}",
-        credential=DefaultAzureCredential(),
-        connection_verify=False,
-        verify_challenge_resource=False,
-        api_version="7.6",
-    )
-
-    container.stop()
-    os.environ.pop("IDENTITY_ENDPOINT", None)
-    os.environ.pop("IDENTITY_HEADER", None)
+    with localstack_azure_key_vault(token) as vault_url:
+        yield SecretClient(vault_url=vault_url, credential=DefaultAzureCredential())
 
 
 class TestAzureKeyVault:

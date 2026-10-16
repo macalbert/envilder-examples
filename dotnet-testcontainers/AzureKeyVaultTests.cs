@@ -3,8 +3,8 @@ namespace Envilder.Examples.Tests;
 using AwesomeAssertions;
 using Envilder.Infrastructure.Azure;
 
-public sealed class AzureKeyVaultTests(LowkeyVaultFixture keyVault)
-	: IClassFixture<LowkeyVaultFixture>
+public sealed class AzureKeyVaultTests(LocalStackAzureFixture keyVault)
+	: IClassFixture<LocalStackAzureFixture>
 {
 	[Fact]
 	public async Task Should_ResolveSecretFromKeyVault_When_MapFilePointsToIt()

@@ -1,52 +1,23 @@
 import { readFileSync } from 'node:fs';
-import { Agent } from 'node:https';
-import { DefaultAzureCredential } from '@azure/identity';
-import { SecretClient } from '@azure/keyvault-secrets';
 import {
   AzureKeyVaultSecretProvider,
+  Envilder,
   EnvilderClient,
   MapFileParser,
 } from '@envilder/sdk';
-import {
-  GenericContainer,
-  type StartedTestContainer,
-  Wait,
-} from 'testcontainers';
 import { afterAll, beforeAll, expect, it } from 'vitest';
+import { type LocalStackAzure, startLocalStackAzure } from './localstack-azure';
 
-const VAULT_PORT = 8443;
-const TOKEN_PORT = 8080;
-
-let lowkeyVault: StartedTestContainer;
-let secrets: SecretClient;
+let azure: LocalStackAzure;
 
 beforeAll(async () => {
-  lowkeyVault = await new GenericContainer('nagyesta/lowkey-vault:7.1.61')
-    .withExposedPorts(VAULT_PORT, TOKEN_PORT)
-    .withEnvironment({
-      LOWKEY_ARGS: '--server.port=8443 --LOWKEY_VAULT_RELAXED_PORTS=true',
-    })
-    .withWaitStrategy(Wait.forLogMessage('Started LowkeyVaultApp'))
-    .withStartupTimeout(180_000)
-    .start();
+  const environment = await Envilder.resolveFile('../envilder.json');
 
-  const host = lowkeyVault.getHost();
-
-  process.env.IDENTITY_ENDPOINT = `http://${host}:${lowkeyVault.getMappedPort(TOKEN_PORT)}/metadata/identity/oauth2/token`;
-  process.env.IDENTITY_HEADER = 'dummy';
-
-  secrets = new SecretClient(
-    `https://${host}:${lowkeyVault.getMappedPort(VAULT_PORT)}`,
-    new DefaultAzureCredential(),
-    {
-      agent: new Agent({ rejectUnauthorized: false }),
-      disableChallengeResourceVerification: true,
-    },
-  );
+  azure = await startLocalStackAzure(environment);
 }, 240_000);
 
 afterAll(async () => {
-  await lowkeyVault?.stop();
+  await azure?.stop();
 });
 
 it('Should_ResolveSecretFromKeyVault_When_MapFilePointsToIt', async () => {
@@ -56,9 +27,9 @@ it('Should_ResolveSecretFromKeyVault_When_MapFilePointsToIt', async () => {
   );
   const expected = crypto.randomUUID();
 
-  await secrets.setSecret(mapFile.mappings.get('DEMO_SECRET')!, expected);
+  await azure.secrets.setSecret(mapFile.mappings.get('DEMO_SECRET')!, expected);
 
-  const sut = new EnvilderClient(new AzureKeyVaultSecretProvider(secrets));
+  const sut = new EnvilderClient(new AzureKeyVaultSecretProvider(azure.secrets));
 
   // Act
   const actual = await sut.resolveSecrets(mapFile);

@@ -1,6 +1,6 @@
 # TypeScript + Aspire
 
-**Aspire [TypeScript AppHost](https://devblogs.microsoft.com/aspire/aspire-typescript-apphost/) · Vitest · LocalStack · Lowkey Vault**
+**Aspire [TypeScript AppHost](https://devblogs.microsoft.com/aspire/aspire-typescript-apphost/) · Vitest · LocalStack (AWS and Azure)**
 
 ```bash
 npm install && npm test
@@ -20,12 +20,13 @@ flowchart LR
 
     subgraph apphost["🚀 AppHost (apphost.ts)"]
         localstack["LocalStack<br/><i>localhost:4566</i>"]
-        lowkey["Lowkey Vault<br/><i>localhost:8443</i>"]
+        lsazure["LocalStack for Azure<br/><i>localhost:4577</i>"]
     end
 
     token -- "Envilder.resolveFile('../envilder.json')" --> localstack
+    token --> lsazure
     aws["🧪 aws-ssm.test.ts"] --> localstack
-    azure["🧪 azure-key-vault.test.ts"] --> lowkey
+    azure["🧪 azure-key-vault.test.ts"] --> lsazure
 ```
 
 There's no TypeScript `Aspire.Hosting.Testing` yet. Instead, [`aspire.setup.ts`](./aspire.setup.ts) runs `aspire run` once for the whole test run, waits until both emulators answer, and stops it at the end.
@@ -38,7 +39,7 @@ There's no TypeScript `Aspire.Hosting.Testing` yet. Instead, [`aspire.setup.ts`]
 
 ## Read the code in this order
 
-1. **[`apphost.ts`](./apphost.ts)** shows the whole integration: `Envilder.resolveFile('../envilder.json')`, then `.withEnvironment('LOCALSTACK_AUTH_TOKEN', token)`. Lowkey Vault sits next to it and needs no token.
+1. **[`apphost.ts`](./apphost.ts)** shows the whole integration: `Envilder.resolveFile('../envilder.json')`, then `.withEnvironment('LOCALSTACK_AUTH_TOKEN', token)`. LocalStack for Azure gets the same token and a fixed port (`4577`, host and container), because vault URLs embed it.
 2. **[`aws-ssm.test.ts`](./aws-ssm.test.ts)** holds the first two tests. In the second, look at the `Act` block: that is everything Envilder does.
 3. **[`azure-key-vault.test.ts`](./azure-key-vault.test.ts)** is the same test against Key Vault. Only the map file and the client change.
 4. **[`aspire.setup.ts`](./aspire.setup.ts)** starts and stops the AppHost. Skim it.
@@ -66,10 +67,11 @@ You won't need these against real clouds:
 
 | Where | What | Why |
 |-------|------|-----|
-| `apphost.ts` | `withHttpHealthCheck({ path: '/ping', … })` | lets Aspire know when Lowkey Vault is ready |
+| `apphost.ts` | `GATEWAY_LISTEN` / `LOCALSTACK_HOST` with the same host and container port | vault URLs embed the gateway port |
 | `aws-ssm.test.ts` | `credentials: { accessKeyId: 'test', … }` | LocalStack accepts any credentials |
-| `azure-key-vault.test.ts` | `IDENTITY_ENDPOINT` / `IDENTITY_HEADER` | `DefaultAzureCredential` gets its token from Lowkey Vault, as it would from Azure on an App Service |
-| `azure-key-vault.test.ts` | `agent: new Agent({ rejectUnauthorized: false })` | Lowkey Vault uses a self-signed certificate; only this client skips the check |
-| `azure-key-vault.test.ts` | `disableChallengeResourceVerification` | the vault isn't on `*.vault.azure.net` |
+| `azure-key-vault.test.ts` | `ClientSecretCredential` with a `dummy` secret, then a resource group and vault created through the emulated Resource Manager | the emulator accepts any placeholder service principal and starts with no vault |
+| `azure-key-vault.test.ts` | local token server + `IDENTITY_ENDPOINT` / `IDENTITY_HEADER` | `DefaultAzureCredential` gets its token as it would from Azure on an App Service; its environment credential can't reach the emulator |
+
+TLS verification and challenge resource verification stay enabled. The Azure emulator also needs the LocalStack token, and its image has no versioned tags yet (`latest`). See [ADR-0014](https://github.com/macalbert/envilder/blob/main/docs/adr/0014-localstack-azure-key-vault-emulator.md).
 
 The first run generates `.modules/` and `.aspire/` (both git-ignored).

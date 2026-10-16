@@ -1,6 +1,8 @@
 import { Envilder } from '@envilder/sdk';
 import { createBuilder } from './.modules/aspire.js';
 
+const AZURE_PORT = 4577;
+
 const builder = await createBuilder();
 
 const secrets = await Envilder.resolveFile('../envilder.json');
@@ -16,14 +18,16 @@ await builder
   .withEnvironment('LOCALSTACK_AUTH_TOKEN', token)
   .withHttpEndpoint({ port: 4566, targetPort: 4566 });
 
+// Vault URLs embed the gateway port, so the host port must equal the port the
+// emulator listens on inside the container.
 await builder
-  .addContainer('keyvault', { image: 'nagyesta/lowkey-vault', tag: '7.1.61' })
-  .withEnvironment(
-    'LOWKEY_ARGS',
-    '--server.port=8443 --LOWKEY_VAULT_RELAXED_PORTS=true',
-  )
-  .withHttpsEndpoint({ port: 8443, targetPort: 8443, name: 'vault' })
-  .withHttpEndpoint({ port: 8080, targetPort: 8080, name: 'token' })
-  .withHttpHealthCheck({ path: '/ping', endpointName: 'token' });
+  .addContainer('localstack-azure', {
+    image: 'localstack/localstack-azure',
+    tag: 'latest',
+  })
+  .withEnvironment('LOCALSTACK_AUTH_TOKEN', token)
+  .withEnvironment('GATEWAY_LISTEN', `0.0.0.0:${AZURE_PORT}`)
+  .withEnvironment('LOCALSTACK_HOST', `localhost.localstack.cloud:${AZURE_PORT}`)
+  .withHttpEndpoint({ port: AZURE_PORT, targetPort: AZURE_PORT });
 
 await builder.build().run();
