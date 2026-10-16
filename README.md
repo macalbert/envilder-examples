@@ -74,6 +74,24 @@ Tests: `Should_ResolveSecretFromSsm_When_MapFilePointsToIt` and `Should_ResolveS
 
 > **The one line that differs from production.** In your app you write `Env.ResolveFileAsync("envilder.json")` and Envilder builds the cloud client for you. The tests build that client themselves, aimed at the emulator, and pass it to `EnvilderClient`. Everything after that line is the exact code your app runs.
 
+## Run any command with its secrets: `envilder exec`
+
+No code at all? [`envilder exec`](https://github.com/macalbert/envilder/blob/main/docs/exec-command.md) resolves the map file and starts a command with the values in its environment. Nothing is written to disk, so there's no `.env` to gitignore or clean up:
+
+```bash
+# SSM -> memory -> container, in one line (from the repo root)
+npx envilder exec docker run --rm --env LOCALSTACK_AUTH_TOKEN -p 4566:4566 localstack/localstack:stable
+```
+
+That's it: no `.env`, no export, no script. `--env LOCALSTACK_AUTH_TOKEN` (no `=value`) tells Docker to copy the variable from the environment Envilder just built, so the token never touches the disk or the command line. Ctrl+C stops it and `--rm` cleans up the container. Needs Docker and the same SSM token as the rest of the repo.
+
+Worth knowing, from the [exec docs](https://github.com/macalbert/envilder/blob/main/docs/exec-command.md):
+
+- **Fail-closed.** If any secret is missing, empty or unreadable, the command is not started and Envilder exits with `125`. Pull mode only warns.
+- **Exit codes follow your command** (`n`, or `128 + n` for a signal), so Envilder's own failures (`125`) stay distinguishable.
+- **Envilder options go first**; the command starts at the first non-option, so `--` is only needed when the command itself starts with a dash. No shell is involved: use `envilder exec sh -c '...'` if you need one.
+- **Not a sandbox.** The command and everything it starts can read the secrets.
+
 ## The examples
 
 | Folder | Stack | Run it (from the folder) |
