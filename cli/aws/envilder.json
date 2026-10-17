@@ -1,6 +1,3 @@
 {
-  "$config": {
-    "provider": "aws"
-  },
-  "DEMO_SECRET": "/envilder-cli/demo-secret"
+  "LOCALSTACK_AUTH_TOKEN": "/envilder-cli/localstack-auth-token"
 }

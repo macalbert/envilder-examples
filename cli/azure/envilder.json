@@ -1,7 +1,7 @@
 {
   "$config": {
     "provider": "azure",
-    "vaultUrl": "https://kv-envilder-cli.vault.azure.localhost.localstack.cloud:4566"
+    "vaultUrl": "https://<your-vault>.vault.azure.net"
   },
-  "DEMO_SECRET": "envilder-cli-demo-secret"
+  "LOCALSTACK_AUTH_TOKEN": "localstack-auth-token"
 }

@@ -2,12 +2,12 @@
 
 [← Back to the CLI guide](./README.md) · Next: [AWS SSM](./aws/README.md) or [Azure Key Vault](./azure/README.md)
 
-You need three things: **Node.js** (it provides `npx`, which runs Envilder without installing it), **Docker** (it runs the emulators) and the **CLI of your cloud**, which is the last section ([AWS CLI or Azure CLI](#your-clouds-cli)).
+You need three things: **Node.js** (it provides `npx`, which runs Envilder without installing it), **Docker** (it runs LocalStack) and the **CLI of your cloud**, which is the last section ([AWS CLI or Azure CLI](#your-clouds-cli)).
 
 | Tool | Version | Why | Official install docs |
 |------|---------|-----|-----------------------|
 | [Node.js](https://nodejs.org/) | 22.12 or newer | runs `npx envilder` | [Download](https://nodejs.org/en/download) · [nvm](https://github.com/nvm-sh/nvm#installing-and-updating) |
-| [Docker](https://www.docker.com/) | any recent | runs the LocalStack emulators | [macOS](https://docs.docker.com/desktop/setup/install/mac-install/) · [Windows](https://docs.docker.com/desktop/setup/install/windows-install/) · [Ubuntu](https://docs.docker.com/engine/install/ubuntu/) |
+| [Docker](https://www.docker.com/) | any recent | runs LocalStack | [macOS](https://docs.docker.com/desktop/setup/install/mac-install/) · [Windows](https://docs.docker.com/desktop/setup/install/windows-install/) · [Ubuntu](https://docs.docker.com/engine/install/ubuntu/) |
 
 Open a terminal: **Terminal** on macOS and Ubuntu, **PowerShell** on Windows. Then follow your system.
 
@@ -68,7 +68,7 @@ docker run --rm hello-world
 
 ## Your cloud's CLI
 
-Envilder reads and writes secrets in a real cloud, so install the CLI of the one you use: the **AWS CLI**, the **Azure CLI**, or both. It is how you log in to your account. The AWS emulator in the next guide needs none (it accepts fake keys), but the **Azure guide uses the Azure CLI** to sign in to the emulator and create the vault.
+Envilder reads and writes secrets in a real cloud, so install the CLI of the one you use: the **AWS CLI**, the **Azure CLI**, or both. It is how you log in to your account. Both guides need you to be logged in to that cloud first.
 
 | Tool | Log in with | Used for | Official docs |
 |------|-------------|----------|---------------|
