@@ -10,17 +10,17 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@envilder/sdk": "^0.4.1",
+    "@envilder/sdk": "^1.0.0",
     "vscode-jsonrpc": "^8.2.1"
   },
   "devDependencies": {
-    "@aws-sdk/client-ssm": "^3.1145.0",
-    "@azure/identity": "^4.13.3",
-    "@azure/keyvault-secrets": "^4.11.2",
-    "@types/node": "^26.6.3",
+    "@aws-sdk/client-ssm": "^3.1158.0",
+    "@azure/identity": "^4.14.0",
+    "@azure/keyvault-secrets": "^4.12.0",
+    "@types/node": "^26.6.5",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.2"
+    "vitest": "^5.0.5"
   },
   "allowScripts": {
     "esbuild": true
