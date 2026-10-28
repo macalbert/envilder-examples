@@ -23,5 +23,8 @@
   "allowScripts": {
     "protobufjs": true,
     "ssh2": true
+  },
+  "overrides": {
+    "@azure/msal-node": "^7.1.2"
   }
 }
