@@ -3,7 +3,7 @@
   <!-- Every NuGet version for the .NET examples lives here. Update with: dotnet outdated envilder-examples.slnx -u -->
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
-    <!-- Lets the Amazon.CDK.Lib entry below override the vulnerable version LocalStack.Aspire.Hosting pulls in -->
+    <!-- Lets the Amazon.CDK.Lib and MessagePack entries below override the vulnerable versions the Aspire packages pull in -->
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
 
@@ -16,6 +16,7 @@
     <PackageVersion Include="Amazon.CDK.Lib" Version="2.271.0" />
     <PackageVersion Include="Envilder" Version="0.5.2" />
     <PackageVersion Include="LocalStack.Aspire.Hosting" Version="13.4.0" />
+    <PackageVersion Include="MessagePack" Version="2.5.303" />
     <PackageVersion Include="Testcontainers.LocalStack" Version="4.15.0" />
     <PackageVersion Include="xunit.v3" Version="4.0.1" />
   </ItemGroup>
