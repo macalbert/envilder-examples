@@ -4,7 +4,7 @@
 
 Real use case: [LocalStack for Azure](https://docs.localstack.cloud/azure/) needs an [auth token](https://docs.localstack.cloud/azure/getting-started) to start. We keep that token in Azure Key Vault with Envilder, and Envilder hands it to Docker. It never goes into your shell or a file you commit.
 
-Official docs: [Azure Key Vault](https://learn.microsoft.com/en-us/azure/key-vault/general/overview) · [`DefaultAzureCredential`](https://learn.microsoft.com/en-us/javascript/api/@azure/identity/defaultazurecredential) · Envilder: [push](https://github.com/macalbert/envilder/blob/main/docs/push-command.md), [pull](https://github.com/macalbert/envilder/blob/main/docs/pull-command.md), [exec](https://github.com/macalbert/envilder/blob/main/docs/exec-command.md).
+Official docs: [Azure Key Vault](https://learn.microsoft.com/en-us/azure/key-vault/general/overview) · [`DefaultAzureCredential`](https://learn.microsoft.com/en-us/javascript/api/@azure/identity/defaultazurecredential) · Envilder: [push](https://github.com/macalbert/envilder/blob/main/docs/push-command.md), [validate](https://github.com/macalbert/envilder/blob/main/docs/validate-command.md), [pull](https://github.com/macalbert/envilder/blob/main/docs/pull-command.md), [exec](https://github.com/macalbert/envilder/blob/main/docs/exec-command.md).
 
 You need a Key Vault. If you don't have one (the name must be unique worldwide):
 
@@ -37,7 +37,34 @@ npx envilder --push --key=LOCALSTACK_AUTH_TOKEN --value=<your-token> --secret-pa
 
 The first run asks `Need to install the following packages: envilder`: answer `y`. You should see `SECRET PUSHED`.
 
-## 3. Run a command with the token
+## 3. Check it before you use it
+
+`validate` is a preflight check: it says whether the map file is valid and whether every secret it declares exists, before `exec` or a pull needs them. It never reads or prints a secret value.
+
+```bash
+npx envilder validate --offline
+```
+
+`--offline` only reads the map file (JSON, schema, provider settings): no cloud call and no credentials, so it fits a pull request check. If `envilder.json` still has the `<your-vault>` placeholder, it fails here with `$config.vaultUrl must be an absolute URI.` and exit code `1`.
+
+Without `--offline`, Envilder also asks the vault whether each declared secret exists:
+
+```bash
+npx envilder validate
+```
+
+```text
+✓ Map file valid: envilder.json
+Checking 1 secret in azure, vault=<your-vault>.vault.azure.net
+  ✓ LOCALSTACK_AUTH_TOKEN  localstack-auth-token  exists
+✓ 1 secret exists
+```
+
+If you skipped step 2, the key shows as `missing` and the summary `✗ Validation failed: 1 missing` goes to stderr. Other statuses are `access denied`, `authentication failed` and `provider error`; `access denied` is never reported as `missing`. The exit code is `0` when everything passes and `1` otherwise, so it can gate a script or a CI job.
+
+The remote check lists the vault's secret names (metadata only), so your user needs permission to list secrets, not only to read them. The *Key Vault Secrets User* and *Key Vault Secrets Officer* roles include it; with access policies, grant `List` besides `Get`. More in the [validate docs](https://github.com/macalbert/envilder/blob/main/docs/validate-command.md).
+
+## 4. Run a command with the token
 
 ```bash
 npx envilder exec -- docker run --rm --env LOCALSTACK_AUTH_TOKEN localstack/localstack-azure:latest
@@ -47,7 +74,7 @@ Envilder reads the token from the vault and starts Docker with it in its environ
 
 Ctrl+C stops the container and `--rm` removes it.
 
-## 4. Pull it into a `.env`
+## 5. Pull it into a `.env`
 
 ```bash
 npx envilder
@@ -61,11 +88,23 @@ LOCALSTACK_AUTH_TOKEN=<your-token>
 
 That file now has a secret in clear text: add `.env` to your `.gitignore`.
 
+### Check the `.env` against the map file
+
+> [!NOTE]
+> `--envfile` and `--compare-values` are merged in Envilder but not released yet: they ship in the next CLI release after `0.20.0`. With `0.20.0`, `validate` rejects them with `unknown option`.
+
+```bash
+npx envilder validate --envfile=.env
+```
+
+Every variable of the map file must be in `.env` exactly once: a missing one (`missing from .env`) or a repeated one (`duplicated in .env`) fails, and a key only in `.env` is a warning (`not declared in map file`). Add `--compare-values` to also check that each value in `.env` matches the one in the store; it reports `matches` or `differs` and never prints either value.
+
 ## Troubleshooting
 
 | You see | Cause and fix |
 |---------|---------------|
 | `Please run 'az login'` / Envilder can't authenticate | You are not logged in to Azure. See the [setup](../setup.md#your-clouds-cli) |
 | `Forbidden` / access denied on the vault | Your user needs the *Key Vault Secrets Officer* role on the vault |
-| `secret not found … skipped` | The token was never pushed, or the name differs from the map file |
+| `validate` says `access denied` for every key | Your user can read secrets but not list them. See [step 3](#3-check-it-before-you-use-it) |
+| `secret not found … skipped`, or `missing` in `validate` | The token was never pushed, or the name differs from the map file |
 | LocalStack exits right away | The token is wrong. Push it again (step 2) |

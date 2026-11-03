@@ -23,7 +23,7 @@ flowchart LR
         lsazure["LocalStack for Azure<br/><i>localhost:4577</i>"]
     end
 
-    token -- "Envilder.resolveFile('../envilder.json')" --> localstack
+    token -- "Envilder.fromMapFile('../envilder.json')<br/>.withContractValidation()" --> localstack
     token --> lsazure
     aws["🧪 aws-ssm.test.ts"] --> localstack
     azure["🧪 azure-key-vault.test.ts"] --> lsazure
@@ -39,7 +39,7 @@ There's no TypeScript `Aspire.Hosting.Testing` yet. Instead, [`aspire.setup.ts`]
 
 ## Read the code in this order
 
-1. **[`apphost.ts`](./apphost.ts)** shows the whole integration: `Envilder.resolveFile('../envilder.json')`, then `.withEnvironment('LOCALSTACK_AUTH_TOKEN', token)`. LocalStack for Azure gets the same token and a fixed port (`4577`, host and container), because vault URLs embed it.
+1. **[`apphost.ts`](./apphost.ts)** shows the whole integration: `Envilder.fromMapFile('../envilder.json').withContractValidation().resolve()`, then `.withEnvironment('LOCALSTACK_AUTH_TOKEN', token)`. `withContractValidation()` first checks that the token exists in SSM, without reading it, and stops the AppHost with `ContractValidationError` (naming `LOCALSTACK_AUTH_TOKEN` and its path) if it does not. That check needs `ssm:GetParameters` on top of the `ssm:GetParameter` the resolve uses. LocalStack for Azure gets the same token and a fixed port (`4577`, host and container), because vault URLs embed it.
 2. **[`aws-ssm.test.ts`](./aws-ssm.test.ts)** holds the first two tests. In the second, look at the `Act` block: that is everything Envilder does.
 3. **[`azure-key-vault.test.ts`](./azure-key-vault.test.ts)** is the same test against Key Vault. Only the map file and the client change.
 4. **[`aspire.setup.ts`](./aspire.setup.ts)** starts and stops the AppHost. Skim it.

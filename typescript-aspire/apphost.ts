@@ -5,7 +5,11 @@ const AZURE_PORT = 4577;
 
 const builder = await createBuilder();
 
-const secrets = await Envilder.resolveFile('../envilder.json');
+// Fails here, naming the variable and the SSM path, if the token was never
+// pushed, instead of letting the emulators start without it.
+const secrets = await Envilder.fromMapFile('../envilder.json')
+  .withContractValidation()
+  .resolve();
 const token = secrets.get('LOCALSTACK_AUTH_TOKEN');
 if (!token) {
   throw new Error(

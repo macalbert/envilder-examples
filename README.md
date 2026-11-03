@@ -27,7 +27,7 @@ That's the entire integration. [Envilder](https://envilder.com) resolves the tok
 
 ## What the tests prove
 
-Every example tells the same two stories.
+The Testcontainers examples tell three stories; the Aspire ones tell the first two and use the third at startup.
 
 ### 1. Envilder hands your containers their secrets
 
@@ -74,6 +74,30 @@ Tests: `Should_ResolveSecretFromSsm_When_MapFilePointsToIt` and `Should_ResolveS
 
 > **The one line that differs from production.** In your app you write `Env.ResolveFileAsync("envilder.json")` and Envilder builds the cloud client for you. The tests build that client themselves, aimed at the emulator, and pass it to `EnvilderClient`. Everything after that line is the exact code your app runs.
 
+### 3. Envilder checks the contract before anything reads a secret
+
+Every variable in the map file must point at a secret that exists. The SDKs check that without reading any value: `ValidateContractAsync()` / `validate_contract()` / `validateContract()` returns one status per variable (`exists`, `missing`, `access_denied`, `authentication_failed`, `provider_error`), and `WithContractValidation()` / `with_contract_validation()` / `withContractValidation()` makes a load fail fast when the contract does not hold:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant T as 🧪 Test
+    participant S as 🐳 Emulated store
+    participant E as ⚙️ Envilder
+
+    T->>S: put DEMO_SECRET, leave NOT_PUSHED_YET out
+    T->>E: validate the map file
+    E->>S: which of these exist? (no values)
+    S-->>E: DEMO_SECRET yes, NOT_PUSHED_YET no
+    E-->>T: DEMO_SECRET exists, NOT_PUSHED_YET missing
+    T->>E: resolve with contract validation on
+    E-->>T: ContractValidationError: NOT_PUSHED_YET (…): missing
+```
+
+Tests: `Should_ReportEveryKeyAsExists_When_ContractHoldsIn…`, `Should_ReportKeyAsMissing_When_SecretIsNotIn…` and `Should_FailTheLoad_When_ContractValidationIsOnAndSecretIsNotIn…`, for SSM and Key Vault. The missing key is added to a temporary copy of `envilder.test.*.json`, so the committed map files stay as they are. Here the tests let Envilder build the cloud client, as your app does, and aim it at the emulator from outside: `AWS_ENDPOINT_URL_SSM` and test credentials for SSM, `WithVaultUrl(...)` plus the token endpoint the Azure fixture already uses for Key Vault. The AppHosts use the same opt-in on `envilder.json`, so a token that was never pushed stops them with its name and path instead of letting LocalStack exit with a license error. That check needs `ssm:GetParameters` on the token (or permission to list the vault's secrets with Option B), besides the read permission the resolve already uses.
+
+Needs SDK `1.1.0` or newer ([.NET](https://www.nuget.org/packages/Envilder), [Python](https://pypi.org/project/envilder/), [Node.js](https://www.npmjs.com/package/@envilder/sdk)).
+
 ## Run any command with its secrets: `envilder exec`
 
 No code at all? [`envilder exec`](https://github.com/macalbert/envilder/blob/main/docs/exec-command.md) resolves the map file and starts a command with the values in its environment. Nothing is written to disk, so there's no `.env` to gitignore or clean up:
@@ -92,6 +116,20 @@ Worth knowing, from the [exec docs](https://github.com/macalbert/envilder/blob/m
 - **Envilder options go first**; the command starts at the first non-option, so `--` is only needed when the command itself starts with a dash. No shell is involved: use `envilder exec sh -c '...'` if you need one.
 - **Not a sandbox.** The command and everything it starts can read the secrets.
 
+## Check before you run: `envilder validate`
+
+[`envilder validate`](https://github.com/macalbert/envilder/blob/main/docs/validate-command.md) is the preflight for `exec` and pull, and the CLI side of story 3:
+
+```bash
+# The map file only: JSON, schema, provider settings. No cloud call, no credentials
+npx envilder validate --offline
+
+# Also asks the provider whether every declared secret exists, without reading it
+npx envilder validate
+```
+
+It exits with `0` when every check passes and `1` otherwise, and it never prints a secret value. The [CLI guide](./cli/README.md) walks through both, with a CI example. Comparing a local `.env` with the map file (`--envfile`, `--compare-values`) ships in the next CLI release after `0.20.0`.
+
 ## The examples
 
 | Folder | Stack | Run it (from the folder) |
@@ -101,7 +139,7 @@ Worth knowing, from the [exec docs](https://github.com/macalbert/envilder/blob/m
 | [`dotnet-testcontainers/`](./dotnet-testcontainers) | xUnit v3 + Testcontainers | `dotnet test` |
 | [`dotnet-aspire/`](./dotnet-aspire) | Aspire AppHost + `Aspire.Hosting.Testing` | `cd AppHost.Tests && dotnet test` |
 | [`typescript-aspire/`](./typescript-aspire) | Aspire [TypeScript AppHost](https://devblogs.microsoft.com/aspire/aspire-typescript-apphost/) | `npm install && npm test` * |
-| [`cli/`](./cli) | `npx envilder` push, pull and exec, from a computer with nothing installed | follow the [README](./cli/README.md) |
+| [`cli/`](./cli) | `npx envilder` push, validate, pull and exec, from a computer with nothing installed | follow the [README](./cli/README.md) |
 
 Each folder has its own README with the order to read its files in. Each folder is self-contained: there is no `package.json` at the repo root, so run the command inside the folder. The two .NET examples also share a solution, so `dotnet test` from the repo root runs both.
 
@@ -196,7 +234,7 @@ npx envilder --push \
 
 Run the push from the repo root: the CLI reads `$config` from `envilder.json` and sends the token to your vault.
 
-Nothing else changes. The tests and AppHosts call `Envilder.resolveFile('envilder.json')`, and the `$config` block decides where the token comes from. See [providers](https://envilder.com/#providers).
+Nothing else changes. The tests call `Envilder.resolveFile('envilder.json')`, the AppHosts call `Envilder.fromMapFile('envilder.json').withContractValidation()`, and the `$config` block decides where the token comes from. See [providers](https://envilder.com/#providers).
 
 ## Updating dependencies
 

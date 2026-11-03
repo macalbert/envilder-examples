@@ -12,6 +12,20 @@ public sealed class LocalStackFixture : IAsyncLifetime
 
 	public IAmazonSimpleSystemsManagement Ssm { get; private set; } = null!;
 
+	/// <summary>
+	/// Aims the AWS client that <c>Env.FromMapFile</c> builds from the default
+	/// credential chain at this container, until the scope is disposed.
+	/// </summary>
+	public IDisposable UseAsDefaultAwsEndpoint() => new EnvironmentScope(new Dictionary<string, string?>
+	{
+		["AWS_ENDPOINT_URL_SSM"] = _container.GetConnectionString(),
+		["AWS_ACCESS_KEY_ID"] = "test",
+		["AWS_SECRET_ACCESS_KEY"] = "test",
+		["AWS_SESSION_TOKEN"] = null,
+		["AWS_PROFILE"] = null,
+		["AWS_REGION"] = "us-east-1",
+	});
+
 	public async ValueTask InitializeAsync()
 	{
 		var secrets = await Env.ResolveFileAsync("envilder.json");
