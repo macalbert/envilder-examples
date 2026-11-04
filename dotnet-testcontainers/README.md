@@ -27,24 +27,20 @@ flowchart LR
     azure["🧪 AzureKeyVaultTests"] --> localstackAzure
 ```
 
-Nine tests, three stories (see the [root README](../README.md#what-the-tests-prove)):
+Three tests, two stories (see the [root README](../README.md#what-the-tests-prove)):
 
 | Test | Proves |
 |------|--------|
 | `Should_ActivateLicense_When_LocalStackStartsWithTokenResolvedByEnvilder` | Envilder fetched the real token and LocalStack accepted it |
 | `Should_ResolveSecretFromSsm_When_MapFilePointsToIt` | Envilder resolves `envilder.test.aws.json` against SSM |
 | `Should_ResolveSecretFromKeyVault_When_MapFilePointsToIt` | Envilder resolves `envilder.test.azure.json` against Key Vault in LocalStack for Azure |
-| `Should_ReportEveryKeyAsExists_When_ContractHoldsInSsm` / `…InKeyVault` | The contract check reports `exists` for every variable of `envilder.test.*.json` |
-| `Should_ReportKeyAsMissing_When_SecretIsNotInSsm` / `…InKeyVault` | A variable whose secret was never stored is reported as `missing`, next to the one that `exists` |
-| `Should_FailTheLoad_When_ContractValidationIsOnAndSecretIsNotInSsm` / `…InKeyVault` | With contract validation on, the load fails and the error names the variable and its path, never a value |
 
 ## Read the code in this order
 
 1. **[`LocalStackFixture.cs`](./LocalStackFixture.cs)** shows the whole integration in two statements: `Env.ResolveFileAsync("envilder.json")`, then `.WithEnvironment(secrets)`.
 2. **[`AwsSsmTests.cs`](./AwsSsmTests.cs)** holds the first two tests. In the second, look at the `Act` block: that is everything Envilder does.
 3. **[`AzureKeyVaultTests.cs`](./AzureKeyVaultTests.cs)** is the same test against Key Vault. Compare it with the SSM one: only the map file and the client change.
-4. **The contract tests**, at the end of both test classes, call `Env.FromMapFile(path).ValidateContractAsync(ct)` and `.WithContractValidation().ResolveAsync(ct)`: the same calls your app makes, with no client built by hand. [`TestMapFile.cs`](./TestMapFile.cs) writes the copy of the map file with the extra, never-stored key.
-5. **[`LocalStackAzureFixture.cs`](./LocalStackAzureFixture.cs)** is emulator plumbing (plus [`ManagedIdentityEndpointStub.cs`](./ManagedIdentityEndpointStub.cs)). Skim it.
+4. **[`LocalStackAzureFixture.cs`](./LocalStackAzureFixture.cs)** is emulator plumbing (plus [`ManagedIdentityEndpointStub.cs`](./ManagedIdentityEndpointStub.cs)). Skim it.
 
 ## The line to look at
 
@@ -63,16 +59,6 @@ var secrets = await sut.ResolveSecretsAsync(mapFile);
 
 Everything after that line is the same code your app runs.
 
-For the contract check there is no such line: the tests call `Env.FromMapFile(...)` exactly as your app would, and the emulator is chosen from outside (see below).
-
-```csharp
-var result = await Env.FromMapFile("envilder.test.aws.json").ValidateContractAsync(ct);
-// result.IsValid, and one KeyCheck per variable: Variable, Path, Status (Exists, Missing, ...)
-
-var secrets = await Env.FromMapFile("envilder.json").WithContractValidation().ResolveAsync(ct);
-// throws ContractValidationException naming each failing variable and path, never a value
-```
-
 ## Emulator-only bits
 
 You won't need these against real clouds:
@@ -80,9 +66,6 @@ You won't need these against real clouds:
 | Where | What | Why |
 |-------|------|-----|
 | `LocalStackFixture` | `BasicAWSCredentials("test", "test")` | LocalStack accepts any credentials |
-| `LocalStackFixture.UseAsDefaultAwsEndpoint()` / `EnvironmentScope` | `AWS_ENDPOINT_URL_SSM`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` set for one test, then restored | `Env.FromMapFile` builds its SSM client from the default credential chain, and these variables aim it at LocalStack |
-| contract tests on Key Vault | `.WithVaultUrl(keyVault.Secrets.VaultUri.AbsoluteUri)` | the emulator's vault URL is only known at run time; a real map file has `$config.vaultUrl` |
-| [`AssemblyInfo.cs`](./AssemblyInfo.cs) | `[assembly: Parallelization(Mode = ParallelMode.None)]` | the fixtures read `envilder.json` from your real cloud while other tests change those process-wide variables, so the classes run one after the other |
 | `LocalStackAzureFixture` | free host port bound to the same container port, `GATEWAY_LISTEN`, `LOCALSTACK_HOST` | vault URLs embed the gateway port |
 | `LocalStackAzureFixture` | `ClientSecretCredential` with a placeholder service principal and `DisableInstanceDiscovery` | the emulator accepts any principal; it creates the vault through the ARM API and returns its `vaultUri` |
 | `LocalStackAzureFixture` / `ManagedIdentityEndpointStub` | `IDENTITY_ENDPOINT` / `IDENTITY_HEADER`, other `AZURE_*` variables cleared | a tiny local token endpoint lets `DefaultAzureCredential` get its token, as it would from Azure on an App Service |

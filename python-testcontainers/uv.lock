@@ -350,16 +350,16 @@ wheels = [
 
 [[package]]
 name = "envilder"
-version = "1.1.0"
+version = "1.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "azure-identity" },
     { name = "azure-keyvault-secrets" },
     { name = "boto3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a6/43/5cbeda11efc4a276daa3b1db833cdd2cf98428f5c768d368e2847e5ad9f6/envilder-1.1.0.tar.gz", hash = "sha256:d2cb64268543e45336a8b87d2d3e225318edb61bf029398ad5dfdc6eae9e55e9", size = 75743, upload-time = "2026-11-03T17:53:52.395Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/84/ba/ec4cb302137b1c3eb6e866a5ce35d01eb9db94ae4a49e08c3ee432a9bd9f/envilder-1.0.0.tar.gz", hash = "sha256:4725d1e2dc27343a5644ab226c9d483bc2325f53f653e4b9a15ebe7f937b0a1b", size = 68128, upload-time = "2026-10-27T22:54:41.253Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/79/a1/3be98fc1b55b5f952940713a0326f70706da7cb155050c06a541c6e61518/envilder-1.1.0-py3-none-any.whl", hash = "sha256:cbb8ad5d2129241c63733538757cf3a50d208bc0b69790c60fbe5d7ed0f6f83a", size = 32041, upload-time = "2026-11-03T17:53:50.949Z" },
+    { url = "https://files.pythonhosted.org/packages/72/98/70e55a6c11843f2a3ce2c7f3488a56dbf4c1e28b5866094ec553f8e81346/envilder-1.0.0-py3-none-any.whl", hash = "sha256:6f154ff9391bab003e787ac7b29dfa432ba7466782d1abe3565ab6fece376bd3", size = 21353, upload-time = "2026-10-27T22:54:39.936Z" },
 ]
 
 [[package]]
@@ -386,7 +386,7 @@ requires-dist = [
     { name = "azure-identity" },
     { name = "azure-keyvault-secrets" },
     { name = "boto3" },
-    { name = "envilder", specifier = ">=1.1.0" },
+    { name = "envilder" },
     { name = "requests", specifier = ">=2.34.2" },
     { name = "testcontainers", extras = ["localstack"] },
 ]

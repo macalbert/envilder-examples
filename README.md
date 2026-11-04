@@ -27,7 +27,7 @@ That's the entire integration. [Envilder](https://envilder.com) resolves the tok
 
 ## What the tests prove
 
-The Testcontainers examples tell three stories; the Aspire ones tell the first two and use the third at startup.
+Every example tells the same two stories.
 
 ### 1. Envilder hands your containers their secrets
 
@@ -74,29 +74,17 @@ Tests: `Should_ResolveSecretFromSsm_When_MapFilePointsToIt` and `Should_ResolveS
 
 > **The one line that differs from production.** In your app you write `Env.ResolveFileAsync("envilder.json")` and Envilder builds the cloud client for you. The tests build that client themselves, aimed at the emulator, and pass it to `EnvilderClient`. Everything after that line is the exact code your app runs.
 
-### 3. Envilder checks the contract before anything reads a secret
+### Fail fast at startup: contract validation
 
-Every variable in the map file must point at a secret that exists. The SDKs check that without reading any value: `ValidateContractAsync()` / `validate_contract()` / `validateContract()` returns one status per variable (`exists`, `missing`, `access_denied`, `authentication_failed`, `provider_error`), and `WithContractValidation()` / `with_contract_validation()` / `withContractValidation()` makes a load fail fast when the contract does not hold:
+The Aspire AppHosts resolve `envilder.json` with contract validation on (SDK `1.1.0` or newer). Before reading anything, Envilder checks that the map file is valid and that every secret it declares exists, without reading any value. If the LocalStack token was never pushed, the AppHost stops with an error naming `LOCALSTACK_AUTH_TOKEN` and its path, instead of letting LocalStack exit with a license error:
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant T as 🧪 Test
-    participant S as 🐳 Emulated store
-    participant E as ⚙️ Envilder
-
-    T->>S: put DEMO_SECRET, leave NOT_PUSHED_YET out
-    T->>E: validate the map file
-    E->>S: which of these exist? (no values)
-    S-->>E: DEMO_SECRET yes, NOT_PUSHED_YET no
-    E-->>T: DEMO_SECRET exists, NOT_PUSHED_YET missing
-    T->>E: resolve with contract validation on
-    E-->>T: ContractValidationError: NOT_PUSHED_YET (…): missing
+```csharp
+var environment = await Env.FromMapFile("envilder.json")
+	.WithContractValidation()
+	.ResolveAsync();
 ```
 
-Tests: `Should_ReportEveryKeyAsExists_When_ContractHoldsIn…`, `Should_ReportKeyAsMissing_When_SecretIsNotIn…` and `Should_FailTheLoad_When_ContractValidationIsOnAndSecretIsNotIn…`, for SSM and Key Vault. The missing key is added to a temporary copy of `envilder.test.*.json`, so the committed map files stay as they are. Here the tests let Envilder build the cloud client, as your app does, and aim it at the emulator from outside: `AWS_ENDPOINT_URL_SSM` and test credentials for SSM, `WithVaultUrl(...)` plus the token endpoint the Azure fixture already uses for Key Vault. The AppHosts use the same opt-in on `envilder.json`, so a token that was never pushed stops them with its name and path instead of letting LocalStack exit with a license error. That check needs `ssm:GetParameters` on the token (or permission to list the vault's secrets with Option B), besides the read permission the resolve already uses.
-
-Needs SDK `1.1.0` or newer ([.NET](https://www.nuget.org/packages/Envilder), [Python](https://pypi.org/project/envilder/), [Node.js](https://www.npmjs.com/package/@envilder/sdk)).
+The same check returns a result instead of failing with `ValidateContractAsync()` (.NET), `validate_contract()` (Python) or `validateContract()` (Node.js), with one status per variable: `exists`, `missing`, `access_denied`, `authentication_failed` or `provider_error`. It needs `ssm:GetParameters` on the token (or permission to list the vault's secrets with Option B), besides the read permission the resolve already uses.
 
 ## Run any command with its secrets: `envilder exec`
 
@@ -118,7 +106,7 @@ Worth knowing, from the [exec docs](https://github.com/macalbert/envilder/blob/m
 
 ## Check before you run: `envilder validate`
 
-[`envilder validate`](https://github.com/macalbert/envilder/blob/main/docs/validate-command.md) is the preflight for `exec` and pull, and the CLI side of story 3:
+[`envilder validate`](https://github.com/macalbert/envilder/blob/main/docs/validate-command.md) is the preflight for `exec` and pull, and the CLI side of the same contract check:
 
 ```bash
 # The map file only: JSON, schema, provider settings. No cloud call, no credentials
