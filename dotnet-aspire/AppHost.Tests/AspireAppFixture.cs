@@ -2,10 +2,8 @@
 
 namespace AppHost.Tests;
 
-using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using System.Net.Sockets;
 using System.Text.Json.Nodes;
 using Amazon.Runtime;
 using Amazon.SimpleSystemsManagement;
@@ -26,27 +24,7 @@ public sealed class AspireAppFixture : IAsyncLifetime
 	private const string ResourceGroup = "envilder-examples";
 	private const string Location = "westeurope";
 
-	// These would make DefaultAzureCredential pick another credential before the managed identity one
-	private static readonly string[] CompetingAzureEnvVars =
-	[
-		"AZURE_TENANT_ID",
-		"AZURE_CLIENT_ID",
-		"AZURE_CLIENT_SECRET",
-		"AZURE_CLIENT_CERTIFICATE_PATH",
-		"AZURE_USERNAME",
-		"AZURE_PASSWORD",
-		"AZURE_FEDERATED_TOKEN_FILE",
-		"AZURE_AUTHORITY_HOST",
-		"AZURE_TOKEN_CREDENTIALS",
-	];
-
-	private static readonly string[] IdentityEnvVars = ["IDENTITY_ENDPOINT", "IDENTITY_HEADER"];
-
 	private DistributedApplication _app = null!;
-
-	private ManagedIdentityEndpointStub? _identityEndpoint;
-
-	private (string Name, string? Value)[] _originalEnvValues = [];
 
 	public HttpClient LocalStackHttp { get; private set; } = null!;
 
@@ -89,37 +67,11 @@ public sealed class AspireAppFixture : IAsyncLifetime
 
 		var vaultUrl = await CreateVaultAsync(authorityHost, credential);
 
-		// Lets DefaultAzureCredential reach the emulator through its ManagedIdentityCredential
-		_identityEndpoint = new ManagedIdentityEndpointStub(credential, FindFreePort());
-		_originalEnvValues =
-		[
-			.. CompetingAzureEnvVars.Concat(IdentityEnvVars)
-				.Select(v => (Name: v, Value: Environment.GetEnvironmentVariable(v))),
-		];
-
-		foreach (var name in CompetingAzureEnvVars)
-		{
-			Environment.SetEnvironmentVariable(name, null);
-		}
-
-		Environment.SetEnvironmentVariable("IDENTITY_ENDPOINT", _identityEndpoint.Endpoint.AbsoluteUri);
-		Environment.SetEnvironmentVariable("IDENTITY_HEADER", _identityEndpoint.IdentityHeader);
-
-		Secrets = new SecretClient(new Uri(vaultUrl), new DefaultAzureCredential());
+		Secrets = new SecretClient(new Uri(vaultUrl), credential);
 	}
 
 	public async ValueTask DisposeAsync()
 	{
-		foreach (var (name, value) in _originalEnvValues)
-		{
-			Environment.SetEnvironmentVariable(name, value);
-		}
-
-		if (_identityEndpoint is not null)
-		{
-			await _identityEndpoint.DisposeAsync();
-		}
-
 		LocalStackHttp?.Dispose();
 		Ssm?.Dispose();
 
@@ -174,19 +126,5 @@ public sealed class AspireAppFixture : IAsyncLifetime
 
 		return await response.Content.ReadFromJsonAsync<JsonNode>()
 			?? throw new InvalidOperationException("ARM response body was empty.");
-	}
-
-	private static int FindFreePort()
-	{
-		var listener = new TcpListener(IPAddress.Loopback, 0);
-		listener.Start();
-		try
-		{
-			return ((IPEndPoint)listener.LocalEndpoint).Port;
-		}
-		finally
-		{
-			listener.Stop();
-		}
 	}
 }

@@ -70,7 +70,7 @@ You won't need these against real clouds:
 | `apphost.ts` | `GATEWAY_LISTEN` / `LOCALSTACK_HOST` with the same host and container port | vault URLs embed the gateway port |
 | `aws-ssm.test.ts` | `credentials: { accessKeyId: 'test', … }` | LocalStack accepts any credentials |
 | `azure-key-vault.test.ts` | `ClientSecretCredential` with a `dummy` secret, then a resource group and vault created through the emulated Resource Manager | the emulator accepts any placeholder service principal and starts with no vault |
-| `azure-key-vault.test.ts` | local token server + `IDENTITY_ENDPOINT` / `IDENTITY_HEADER` | `DefaultAzureCredential` gets its token as it would from Azure on an App Service; its environment credential can't reach the emulator |
+| `azure-key-vault.test.ts` | `ClientSecretCredential` with `disableInstanceDiscovery`, passed to `SecretClient` | the emulator hands out tokens to a placeholder service principal on its own authority host |
 
 TLS verification and challenge resource verification stay enabled. The Azure emulator also needs the LocalStack token, and its image has no versioned tags yet (`latest`). See [ADR-0014](https://github.com/macalbert/envilder/blob/main/docs/adr/0014-localstack-azure-key-vault-emulator.md).
 

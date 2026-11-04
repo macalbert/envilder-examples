@@ -18,33 +18,13 @@ public sealed class LocalStackAzureFixture : IAsyncLifetime
 	private const string ResourceGroup = "envilder-examples";
 	private const string Location = "westeurope";
 
-	// Would make DefaultAzureCredential pick another credential ahead of the managed identity one
-	private static readonly string[] EnvVarsToClear =
-	[
-		"AZURE_TENANT_ID",
-		"AZURE_CLIENT_ID",
-		"AZURE_CLIENT_SECRET",
-		"AZURE_CLIENT_CERTIFICATE_PATH",
-		"AZURE_USERNAME",
-		"AZURE_PASSWORD",
-		"AZURE_FEDERATED_TOKEN_FILE",
-		"AZURE_AUTHORITY_HOST",
-		"AZURE_TOKEN_CREDENTIALS",
-		"IDENTITY_ENDPOINT",
-		"IDENTITY_HEADER",
-	];
-
 	private IContainer _container = null!;
-	private ManagedIdentityEndpointStub _identity = null!;
-	private (string Name, string? Value)[] _originalEnv = [];
 
 	public SecretClient Secrets { get; private set; } = null!;
 
 	public async ValueTask InitializeAsync()
 	{
 		var secrets = await Env.ResolveFileAsync("envilder.json");
-
-		_originalEnv = [.. EnvVarsToClear.Select(n => (n, Environment.GetEnvironmentVariable(n)))];
 
 		// Vault URLs embed the gateway port, so host and container ports must match
 		var port = FreePort();
@@ -69,32 +49,11 @@ public sealed class LocalStackAzureFixture : IAsyncLifetime
 
 		var vaultUri = await CreateVaultAsync(authority, credential);
 
-		// DefaultAzureCredential reaches the emulator through its managed identity credential
-		_identity = new ManagedIdentityEndpointStub(credential, FreePort());
-
-		foreach (var name in EnvVarsToClear)
-		{
-			Environment.SetEnvironmentVariable(name, null);
-		}
-
-		Environment.SetEnvironmentVariable("IDENTITY_ENDPOINT", _identity.Endpoint.AbsoluteUri);
-		Environment.SetEnvironmentVariable("IDENTITY_HEADER", _identity.IdentityHeader);
-
-		Secrets = new SecretClient(vaultUri, new DefaultAzureCredential());
+		Secrets = new SecretClient(vaultUri, credential);
 	}
 
 	public async ValueTask DisposeAsync()
 	{
-		foreach (var (name, value) in _originalEnv)
-		{
-			Environment.SetEnvironmentVariable(name, value);
-		}
-
-		if (_identity is not null)
-		{
-			await _identity.DisposeAsync();
-		}
-
 		if (_container is not null)
 		{
 			await _container.DisposeAsync();

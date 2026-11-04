@@ -50,7 +50,7 @@ Test: `Should_ActivateLicense_When_…StartsLocalStackWithTokenResolvedByEnvilde
 
 ### 2. Envilder turns a map file into environment variables
 
-The same test, once per cloud. It stores a random value where the map file points, asks Envilder to resolve the map file, and checks that the value matches:
+The same test, once per cloud. It copies the map file with a secret name no other test uses, stores a random value there, asks Envilder to resolve it, and checks that the value matches:
 
 ```mermaid
 sequenceDiagram
@@ -60,7 +60,7 @@ sequenceDiagram
     participant E as ⚙️ Envilder
 
     Note over T: Arrange
-    T->>S: put a random value at the path in envilder.test.*.json
+    T->>S: put a random value at a unique path, built from envilder.test.*.json
     Note over T,E: Act
     T->>E: resolve envilder.test.*.json
     E->>S: get the secret
@@ -71,6 +71,8 @@ sequenceDiagram
 ```
 
 Tests: `Should_ResolveSecretFromSsm_When_MapFilePointsToIt` and `Should_ResolveSecretFromKeyVault_When_MapFilePointsToIt`. A fresh random value on every run means a pass can only come from what Envilder just read.
+
+**Every test stands on its own.** Each example is its own test project and starts its own emulators: one of each kind, shared by all the tests of that project only, so they can run in parallel. No example reuses another example's containers (the Testcontainers and Aspire examples of the same language never share one). Each test stores its own uniquely named secrets in its Arrange and deletes them when it ends, so no test depends on another test's data, on the order they run in, or on what a previous run left behind.
 
 > **The one line that differs from production.** In your app you write `Env.ResolveFileAsync("envilder.json")` and Envilder builds the cloud client for you. The tests build that client themselves, aimed at the emulator, and pass it to `EnvilderClient`. Everything after that line is the exact code your app runs.
 

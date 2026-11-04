@@ -1,44 +1,13 @@
 import json
-import re
 import uuid
-from collections.abc import Generator
-from pathlib import Path
 from typing import Any
 from urllib.request import urlopen
 
-import boto3
-import pytest
-from envilder import AwsSsmSecretProvider, Envilder, EnvilderClient, MapFileParser
+from envilder import AwsSsmSecretProvider, EnvilderClient
 from mypy_boto3_ssm import SSMClient
 from testcontainers.community.localstack import LocalStackContainer
-from testcontainers.core.container import DockerContainer
-from testcontainers.core.wait_strategies import LogMessageWaitStrategy
 
-ROOT = Path(__file__).parent.parent
-
-
-@pytest.fixture(scope="module")
-def localstack() -> Generator[LocalStackContainer, None, None]:
-    secrets = Envilder.resolve_file(str(ROOT / "envilder.json"))
-
-    container = LocalStackContainer("localstack/localstack:stable")
-    container.env.update(secrets)
-
-    container.waiting_for(LogMessageWaitStrategy(re.compile(r"Ready\.")))
-    DockerContainer.start(container)
-    yield container
-    container.stop()
-
-
-@pytest.fixture(scope="module")
-def ssm(localstack: LocalStackContainer) -> SSMClient:
-    return boto3.client(
-        "ssm",
-        endpoint_url=localstack.get_url(),
-        region_name="us-east-1",
-        aws_access_key_id="test",
-        aws_secret_access_key="test",
-    )
+from mapfiles import ROOT, with_unique_secrets
 
 
 def get_json(url: str) -> Any:
@@ -57,17 +26,19 @@ class TestAwsSsm:
         assert info["is_license_activated"] is True
 
     def Should_ResolveSecretFromSsm_When_MapFilePointsToIt(
-        self, ssm: SSMClient
+        self, ssm: SSMClient, stored_paths: list[str]
     ) -> None:
         # Arrange
-        map_file = MapFileParser().parse((ROOT / "envilder.test.aws.json").read_text())
+        map_file = with_unique_secrets(
+            ROOT / "envilder.test.aws.json", lambda path: f"{path}/{uuid.uuid4().hex}"
+        )
         expected = str(uuid.uuid4())
 
+        stored_paths.append(map_file.mappings["DEMO_SECRET"])
         ssm.put_parameter(
             Name=map_file.mappings["DEMO_SECRET"],
             Value=expected,
             Type="SecureString",
-            Overwrite=True,
         )
 
         sut = EnvilderClient(AwsSsmSecretProvider(ssm))

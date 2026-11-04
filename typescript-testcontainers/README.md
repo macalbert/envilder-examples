@@ -37,8 +37,9 @@ Three tests, two stories (see the [root README](../README.md#what-the-tests-prov
 
 ## Read the code in this order
 
-1. **[`aws-ssm.test.ts`](./aws-ssm.test.ts)**: the `beforeAll` is the whole integration in two statements, `Envilder.resolveFile(...)` and `.withEnvironment(...)`. Then come the first two tests. In the second, look at the `Act` block: that is everything Envilder does.
-2. **[`azure-key-vault.test.ts`](./azure-key-vault.test.ts)** is the same test against Key Vault. The emulator plumbing lives in [`localstack-azure.ts`](./localstack-azure.ts), so skim it. The test itself only changes the map file and the client.
+1. **[`emulators.setup.ts`](./emulators.setup.ts)** is the whole integration in two statements, `Envilder.resolveFile(...)` and `.withEnvironment(...)`. It is Vitest's `globalSetup`: one emulator of each kind for the whole run, shared by every test file through `provide` / `inject`.
+2. **[`aws-ssm.test.ts`](./aws-ssm.test.ts)** holds the first two tests. Each test copies the map file with a unique secret path ([`mapfiles.ts`](./mapfiles.ts)) and `afterEach` deletes what it stored. In the second, look at the `Act` block: that is everything Envilder does.
+3. **[`azure-key-vault.test.ts`](./azure-key-vault.test.ts)** is the same test against Key Vault. The emulator plumbing lives in [`localstack-azure.ts`](./localstack-azure.ts), so skim it. The test itself only changes the map file and the client.
 
 ## The line to look at
 
@@ -64,6 +65,6 @@ You won't need these against real clouds:
 | What | Why |
 |------|-----|
 | `credentials: { accessKeyId: 'test', … }` | LocalStack accepts any credentials |
-| `IDENTITY_ENDPOINT` / `IDENTITY_HEADER` | `DefaultAzureCredential` gets its token from a tiny local server, as it would from Azure on an App Service. The emulator hands out tokens to a placeholder service principal (`any-app`) |
+| `emulatorCredential()`: `ClientSecretCredential` with `disableInstanceDiscovery`, passed to `SecretClient` | the emulator hands out tokens to a placeholder service principal (`any-app`) on its own authority host |
 | `GATEWAY_LISTEN` / `LOCALSTACK_HOST` | vault URLs (`https://<vault>.vault.azure.localhost.localstack.cloud:<port>`) embed the emulator port, so the host port must match the container port |
 | a vault created through the Resource Manager API | the emulator starts empty; in Azure you would already have one |

@@ -7,9 +7,20 @@ using Amazon.SimpleSystemsManagement.Model;
 using AwesomeAssertions;
 using Envilder.Infrastructure.Aws;
 
-public sealed class AwsSsmTests(LocalStackFixture localStack)
-	: IClassFixture<LocalStackFixture>
+public sealed class AwsSsmTests(LocalStackFixture localStack) : IAsyncLifetime
 {
+	private readonly List<string> _storedPaths = [];
+
+	public ValueTask InitializeAsync() => ValueTask.CompletedTask;
+
+	public async ValueTask DisposeAsync()
+	{
+		if (_storedPaths.Count > 0)
+		{
+			await localStack.Ssm.DeleteParametersAsync(new DeleteParametersRequest { Names = _storedPaths });
+		}
+	}
+
 	[Fact]
 	public async Task Should_ActivateLicense_When_LocalStackStartsWithTokenResolvedByEnvilder()
 	{
@@ -25,18 +36,11 @@ public sealed class AwsSsmTests(LocalStackFixture localStack)
 	public async Task Should_ResolveSecretFromSsm_When_MapFilePointsToIt()
 	{
 		// Arrange
-		var mapFile = new MapFileParser().Parse(File.ReadAllText("envilder.test.aws.json"));
+		var mapFile = TestMapFiles.WithUniqueSecrets(
+			"envilder.test.aws.json", path => $"{path}/{Guid.NewGuid():N}");
 		var expected = Guid.NewGuid().ToString();
 
-		await localStack.Ssm.PutParameterAsync(
-			new PutParameterRequest
-			{
-				Name = mapFile.Mappings["DEMO_SECRET"],
-				Value = expected,
-				Type = ParameterType.SecureString,
-				Overwrite = true,
-			},
-			TestContext.Current.CancellationToken);
+		await StoreAsync(mapFile.Mappings["DEMO_SECRET"], expected);
 
 		var sut = new EnvilderClient(new AwsSsmSecretProvider(localStack.Ssm));
 
@@ -45,5 +49,19 @@ public sealed class AwsSsmTests(LocalStackFixture localStack)
 
 		// Assert
 		actual["DEMO_SECRET"].Should().Be(expected);
+	}
+
+	private async Task StoreAsync(string path, string value)
+	{
+		_storedPaths.Add(path);
+
+		await localStack.Ssm.PutParameterAsync(
+			new PutParameterRequest
+			{
+				Name = path,
+				Value = value,
+				Type = ParameterType.SecureString,
+			},
+			TestContext.Current.CancellationToken);
 	}
 }

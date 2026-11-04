@@ -40,7 +40,9 @@ Three tests, two stories (see the [root README](../README.md#what-the-tests-prov
 1. **[`LocalStackFixture.cs`](./LocalStackFixture.cs)** shows the whole integration in two statements: `Env.ResolveFileAsync("envilder.json")`, then `.WithEnvironment(secrets)`.
 2. **[`AwsSsmTests.cs`](./AwsSsmTests.cs)** holds the first two tests. In the second, look at the `Act` block: that is everything Envilder does.
 3. **[`AzureKeyVaultTests.cs`](./AzureKeyVaultTests.cs)** is the same test against Key Vault. Compare it with the SSM one: only the map file and the client change.
-4. **[`LocalStackAzureFixture.cs`](./LocalStackAzureFixture.cs)** is emulator plumbing (plus [`ManagedIdentityEndpointStub.cs`](./ManagedIdentityEndpointStub.cs)). Skim it.
+4. **[`LocalStackAzureFixture.cs`](./LocalStackAzureFixture.cs)** is emulator plumbing. Skim it.
+
+**One emulator of each kind for the whole run.** [`AssemblyFixtures.cs`](./AssemblyFixtures.cs) registers both fixtures as xUnit assembly fixtures, so every test class shares the same LocalStack and LocalStack for Azure, and the classes run in parallel. Each test copies the map file with a unique secret name ([`TestMapFiles.cs`](./TestMapFiles.cs)), stores its own value, and deletes it in `DisposeAsync`.
 
 ## The line to look at
 
@@ -67,7 +69,6 @@ You won't need these against real clouds:
 |-------|------|-----|
 | `LocalStackFixture` | `BasicAWSCredentials("test", "test")` | LocalStack accepts any credentials |
 | `LocalStackAzureFixture` | free host port bound to the same container port, `GATEWAY_LISTEN`, `LOCALSTACK_HOST` | vault URLs embed the gateway port |
-| `LocalStackAzureFixture` | `ClientSecretCredential` with a placeholder service principal and `DisableInstanceDiscovery` | the emulator accepts any principal; it creates the vault through the ARM API and returns its `vaultUri` |
-| `LocalStackAzureFixture` / `ManagedIdentityEndpointStub` | `IDENTITY_ENDPOINT` / `IDENTITY_HEADER`, other `AZURE_*` variables cleared | a tiny local token endpoint lets `DefaultAzureCredential` get its token, as it would from Azure on an App Service |
+| `LocalStackAzureFixture` | `ClientSecretCredential` with a placeholder service principal and `DisableInstanceDiscovery`, passed to `SecretClient` | the emulator accepts any principal and issues its tokens; the same credential creates the vault through the ARM API |
 
 TLS and challenge-resource verification stay on: `*.localhost.localstack.cloud` resolves to `127.0.0.1` with a valid certificate. Like the SSM test, the Azure test needs the LocalStack token.

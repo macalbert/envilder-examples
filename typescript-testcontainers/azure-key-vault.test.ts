@@ -1,35 +1,40 @@
-import { readFileSync } from 'node:fs';
-import {
-  AzureKeyVaultSecretProvider,
-  Envilder,
-  EnvilderClient,
-  MapFileParser,
-} from '@envilder/sdk';
-import { afterAll, beforeAll, expect, it } from 'vitest';
-import { type LocalStackAzure, startLocalStackAzure } from './localstack-azure';
+import { SecretClient } from '@azure/keyvault-secrets';
+import { AzureKeyVaultSecretProvider, EnvilderClient } from '@envilder/sdk';
+import { afterEach, expect, inject, it } from 'vitest';
+import { emulatorCredential } from './localstack-azure';
+import { withUniqueSecrets } from './mapfiles';
 
-let azure: LocalStackAzure;
+const secrets = new SecretClient(
+  inject('vaultUrl'),
+  emulatorCredential(inject('azureAuthorityHost')),
+);
 
-beforeAll(async () => {
-  const environment = await Envilder.resolveFile('../envilder.json');
+// The Key Vault secrets each test creates, deleted once it ends
+let storedNames: string[] = [];
 
-  azure = await startLocalStackAzure(environment);
-}, 240_000);
-
-afterAll(async () => {
-  await azure?.stop();
+afterEach(async () => {
+  for (const name of storedNames) {
+    await secrets.beginDeleteSecret(name);
+  }
+  storedNames = [];
 });
+
+async function store(name: string, value: string): Promise<void> {
+  storedNames.push(name);
+  await secrets.setSecret(name, value);
+}
 
 it('Should_ResolveSecretFromKeyVault_When_MapFilePointsToIt', async () => {
   // Arrange
-  const mapFile = new MapFileParser().parse(
-    readFileSync('../envilder.test.azure.json', 'utf8'),
+  const mapFile = withUniqueSecrets(
+    '../envilder.test.azure.json',
+    (name) => `${name}-${crypto.randomUUID()}`,
   );
   const expected = crypto.randomUUID();
 
-  await azure.secrets.setSecret(mapFile.mappings.get('DEMO_SECRET')!, expected);
+  await store(mapFile.mappings.get('DEMO_SECRET')!, expected);
 
-  const sut = new EnvilderClient(new AzureKeyVaultSecretProvider(azure.secrets));
+  const sut = new EnvilderClient(new AzureKeyVaultSecretProvider(secrets));
 
   // Act
   const actual = await sut.resolveSecrets(mapFile);
