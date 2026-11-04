@@ -1,11 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { createServer, type Server } from 'node:http';
 import { type AddressInfo, createServer as createNetServer } from 'node:net';
-import {
-  ClientSecretCredential,
-  DefaultAzureCredential,
-} from '@azure/identity';
-import { SecretClient } from '@azure/keyvault-secrets';
+import { ClientSecretCredential } from '@azure/identity';
 import {
   GenericContainer,
   type StartedTestContainer,
@@ -20,51 +15,36 @@ const CLIENT_ID = 'any-app';
 const CLIENT_SECRET = 'dummy';
 const LOCATION = 'westeurope';
 
-// Variables that would make DefaultAzureCredential pick another credential
-// ahead of the managed identity one. Cleared while the emulator runs.
-const COMPETING_ENV_VARS = [
-  'AZURE_TENANT_ID',
-  'AZURE_CLIENT_ID',
-  'AZURE_CLIENT_SECRET',
-  'AZURE_CLIENT_CERTIFICATE_PATH',
-  'AZURE_USERNAME',
-  'AZURE_PASSWORD',
-  'AZURE_FEDERATED_TOKEN_FILE',
-  'AZURE_AUTHORITY_HOST',
-  'AZURE_TOKEN_CREDENTIALS',
-  'IDENTITY_ENDPOINT',
-  'IDENTITY_HEADER',
-];
-
 export type LocalStackAzure = {
-  secrets: SecretClient;
+  authorityHost: string;
+  vaultUrl: string;
   stop: () => Promise<void>;
 };
 
 /**
- * Starts LocalStack for Azure, creates a vault through its Resource Manager
- * API and returns a client for it.
- *
- * The client uses `DefaultAzureCredential`, like production code. It reaches
- * the emulator through a local managed identity token endpoint, configured
- * with the `IDENTITY_ENDPOINT` and `IDENTITY_HEADER` variables.
+ * The credential the emulator accepts: a placeholder service principal in its
+ * all-zero tenant, signed in against the emulator instead of Microsoft Entra.
+ */
+export function emulatorCredential(
+  authorityHost: string,
+): ClientSecretCredential {
+  return new ClientSecretCredential(TENANT_ID, CLIENT_ID, CLIENT_SECRET, {
+    authorityHost,
+    disableInstanceDiscovery: true,
+  });
+}
+
+/**
+ * Starts LocalStack for Azure and creates a vault through its Resource
+ * Manager API. Returns where to sign in and the vault URL.
  */
 export async function startLocalStackAzure(
   environment: Map<string, string>,
 ): Promise<LocalStackAzure> {
-  const previousEnv = new Map(
-    [...COMPETING_ENV_VARS].map((name) => [name, process.env[name]]),
-  );
   let container: StartedTestContainer | undefined;
-  let tokenServer: Server | undefined;
 
   const stop = async () => {
-    await new Promise((resolve) => tokenServer?.close(resolve) ?? resolve(0));
     await container?.stop();
-    for (const [name, value] of previousEnv) {
-      if (value === undefined) delete process.env[name];
-      else process.env[name] = value;
-    }
   };
 
   try {
@@ -86,66 +66,17 @@ export async function startLocalStackAzure(
       .start();
 
     const authorityHost = `https://azure.localhost.localstack.cloud:${port}`;
-    const credential = new ClientSecretCredential(
-      TENANT_ID,
-      CLIENT_ID,
-      CLIENT_SECRET,
-      { authorityHost, disableInstanceDiscovery: true },
+    const vaultUrl = await createVault(
+      emulatorCredential(authorityHost),
+      authorityHost,
+      `kv-${name}`,
     );
-    const vaultUrl = await createVault(credential, authorityHost, `kv-${name}`);
 
-    const identityHeader = randomUUID();
-    tokenServer = await startTokenServer(credential, identityHeader);
-    const { port: tokenPort } = tokenServer.address() as AddressInfo;
-
-    for (const variable of COMPETING_ENV_VARS) delete process.env[variable];
-    process.env.IDENTITY_ENDPOINT = `http://127.0.0.1:${tokenPort}/msi/token`;
-    process.env.IDENTITY_HEADER = identityHeader;
-
-    return {
-      secrets: new SecretClient(vaultUrl, new DefaultAzureCredential()),
-      stop,
-    };
+    return { authorityHost, vaultUrl, stop };
   } catch (error) {
     await stop();
     throw error;
   }
-}
-
-// Speaks the App Service managed identity protocol, handing out the tokens
-// the emulator issues to its placeholder service principal.
-function startTokenServer(
-  credential: ClientSecretCredential,
-  identityHeader: string,
-): Promise<Server> {
-  const server = createServer(async (request, response) => {
-    if (request.headers['x-identity-header'] !== identityHeader) {
-      response.writeHead(401).end();
-      return;
-    }
-    const url = new URL(request.url ?? '/', 'http://127.0.0.1');
-    const resource = url.searchParams.get('resource') ?? '';
-    const scope = resource.endsWith('/.default')
-      ? resource
-      : `${resource.replace(/\/$/, '')}/.default`;
-    try {
-      const { token, expiresOnTimestamp } = await credential.getToken(scope);
-      response.writeHead(200, { 'Content-Type': 'application/json' }).end(
-        JSON.stringify({
-          access_token: token,
-          expires_on: String(Math.floor(expiresOnTimestamp / 1000)),
-          resource,
-          token_type: 'Bearer',
-        }),
-      );
-    } catch (error) {
-      response.writeHead(500).end(String(error));
-    }
-  });
-  return new Promise((resolve, reject) => {
-    server.on('error', reject);
-    server.listen(0, '127.0.0.1', () => resolve(server));
-  });
 }
 
 async function createVault(

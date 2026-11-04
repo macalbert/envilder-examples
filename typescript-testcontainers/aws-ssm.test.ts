@@ -1,43 +1,42 @@
-import { readFileSync } from 'node:fs';
-import { PutParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
 import {
-  AwsSsmSecretProvider,
-  Envilder,
-  EnvilderClient,
-  MapFileParser,
-} from '@envilder/sdk';
-import {
-  LocalstackContainer,
-  type StartedLocalStackContainer,
-} from '@testcontainers/localstack';
-import { afterAll, beforeAll, expect, it } from 'vitest';
+  DeleteParametersCommand,
+  PutParameterCommand,
+  SSMClient,
+} from '@aws-sdk/client-ssm';
+import { AwsSsmSecretProvider, EnvilderClient } from '@envilder/sdk';
+import { afterEach, expect, inject, it } from 'vitest';
+import { withUniqueSecrets } from './mapfiles';
 
-let localstack: StartedLocalStackContainer;
-let ssm: SSMClient;
+const localstackUrl = inject('localstackUrl');
 
-beforeAll(async () => {
-  const secrets = await Envilder.resolveFile('../envilder.json');
-
-  localstack = await new LocalstackContainer('localstack/localstack:stable')
-    .withEnvironment(Object.fromEntries(secrets))
-    .start();
-
-  ssm = new SSMClient({
-    endpoint: localstack.getConnectionUri(),
-    region: 'us-east-1',
-    credentials: { accessKeyId: 'test', secretAccessKey: 'test' },
-  });
-}, 180_000);
-
-afterAll(async () => {
-  await localstack?.stop();
+const ssm = new SSMClient({
+  endpoint: localstackUrl,
+  region: 'us-east-1',
+  credentials: { accessKeyId: 'test', secretAccessKey: 'test' },
 });
+
+// The SSM parameters each test creates, deleted once it ends
+let storedPaths: string[] = [];
+
+afterEach(async () => {
+  if (storedPaths.length > 0) {
+    await ssm.send(new DeleteParametersCommand({ Names: storedPaths }));
+  }
+  storedPaths = [];
+});
+
+async function store(path: string, value: string): Promise<void> {
+  storedPaths.push(path);
+  await ssm.send(
+    new PutParameterCommand({ Name: path, Value: value, Type: 'SecureString' }),
+  );
+}
 
 it('Should_ActivateLicense_When_LocalStackStartsWithTokenResolvedByEnvilder', async () => {
   // Act
-  const info = await fetch(
-    new URL('/_localstack/info', localstack.getConnectionUri()),
-  ).then((response) => response.json());
+  const info = await fetch(new URL('/_localstack/info', localstackUrl)).then(
+    (response) => response.json(),
+  );
 
   // Assert
   expect(info.is_license_activated).toBe(true);
@@ -45,19 +44,13 @@ it('Should_ActivateLicense_When_LocalStackStartsWithTokenResolvedByEnvilder', as
 
 it('Should_ResolveSecretFromSsm_When_MapFilePointsToIt', async () => {
   // Arrange
-  const mapFile = new MapFileParser().parse(
-    readFileSync('../envilder.test.aws.json', 'utf8'),
+  const mapFile = withUniqueSecrets(
+    '../envilder.test.aws.json',
+    (path) => `${path}/${crypto.randomUUID()}`,
   );
   const expected = crypto.randomUUID();
 
-  await ssm.send(
-    new PutParameterCommand({
-      Name: mapFile.mappings.get('DEMO_SECRET'),
-      Value: expected,
-      Type: 'SecureString',
-      Overwrite: true,
-    }),
-  );
+  await store(mapFile.mappings.get('DEMO_SECRET')!, expected);
 
   const sut = new EnvilderClient(new AwsSsmSecretProvider(ssm));
 

@@ -29,7 +29,7 @@ flowchart LR
     azure["🧪 AzureKeyVaultTests"] --> azurels
 ```
 
-The tests boot the real AppHost once (`AspireAppFixture`), wait until both emulators are healthy, and run against them:
+The tests boot the real AppHost once (`AspireAppFixture`, an assembly fixture), wait until both emulators are healthy, and run against them in parallel. Each test copies the map file with a unique secret name ([`TestMapFiles.cs`](./AppHost.Tests/TestMapFiles.cs)), stores its own value, and deletes it when it ends:
 
 | Test | Proves |
 |------|--------|
@@ -71,8 +71,7 @@ You won't need these against real clouds:
 | `Program.cs` | `GATEWAY_LISTEN` / `LOCALSTACK_HOST` and a free host port equal to the container port | vault URLs embed the gateway port, so both ports must match |
 | `Program.cs` | `WithHttpHealthCheck("/_localstack/health", endpointName: "gateway")` | lets Aspire know when the emulator is ready |
 | `AspireAppFixture` | `BasicAWSCredentials("test", "test")` | LocalStack accepts any credentials |
-| `AspireAppFixture` | `ClientSecretCredential` with placeholder tenant, client and secret | the emulator accepts any service principal |
+| `AspireAppFixture` | `ClientSecretCredential` with placeholder tenant, client and secret, passed to `SecretClient` | the emulator accepts any service principal and issues its tokens |
 | `AspireAppFixture` | ARM calls creating a resource group and a vault | a real vault already exists; here the returned `vaultUri` is the vault URL |
-| `AspireAppFixture`, `ManagedIdentityEndpointStub` | `IDENTITY_ENDPOINT` / `IDENTITY_HEADER`, `AZURE_*` variables cleared and restored | `DefaultAzureCredential` gets its token from a tiny local endpoint, as it would from Azure on an App Service |
 
 TLS verification stays on: `*.localhost.localstack.cloud` resolves to `127.0.0.1` and is served with a valid certificate.

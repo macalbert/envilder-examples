@@ -1,33 +1,22 @@
 import uuid
-from collections.abc import Generator
-from pathlib import Path
 
-import pytest
-from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
-from envilder import AzureKeyVaultSecretProvider, Envilder, EnvilderClient, MapFileParser
+from envilder import AzureKeyVaultSecretProvider, EnvilderClient
 
-from localstack_azure import localstack_azure_key_vault
-
-ROOT = Path(__file__).parent.parent
-
-
-@pytest.fixture(scope="module")
-def secrets() -> Generator[SecretClient, None, None]:
-    token = Envilder.resolve_file(str(ROOT / "envilder.json"))
-
-    with localstack_azure_key_vault(token) as vault_url:
-        yield SecretClient(vault_url=vault_url, credential=DefaultAzureCredential())
+from mapfiles import ROOT, with_unique_secrets
 
 
 class TestAzureKeyVault:
     def Should_ResolveSecretFromKeyVault_When_MapFilePointsToIt(
-        self, secrets: SecretClient
+        self, secrets: SecretClient, stored_names: list[str]
     ) -> None:
         # Arrange
-        map_file = MapFileParser().parse((ROOT / "envilder.test.azure.json").read_text())
+        map_file = with_unique_secrets(
+            ROOT / "envilder.test.azure.json", lambda name: f"{name}-{uuid.uuid4().hex}"
+        )
         expected = str(uuid.uuid4())
 
+        stored_names.append(map_file.mappings["DEMO_SECRET"])
         secrets.set_secret(map_file.mappings["DEMO_SECRET"], expected)
 
         sut = EnvilderClient(AzureKeyVaultSecretProvider(secrets))

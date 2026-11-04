@@ -37,8 +37,9 @@ Three tests, two stories (see the [root README](../README.md#what-the-tests-prov
 
 ## Read the code in this order
 
-1. **[`test_aws_ssm.py`](./test_aws_ssm.py)**: the `localstack` fixture is the whole integration in two statements, `Envilder.resolve_file(...)` and `container.env.update(secrets)`. Then come the first two tests. In the second, look at the `Act` block: that is everything Envilder does.
-2. **[`test_azure_key_vault.py`](./test_azure_key_vault.py)** is the same test against Key Vault. Its `secrets` fixture resolves the same token, and the emulator plumbing lives in [`localstack_azure.py`](./localstack_azure.py), so skim it. The test itself only changes the map file and the client.
+1. **[`conftest.py`](./conftest.py)**: the `localstack` fixture is the whole integration in two statements, `Envilder.resolve_file(...)` and `container.env.update(secrets)`. Both emulators are session fixtures: one of each for the whole run, shared by every test. The `stored_paths` and `stored_names` fixtures delete what each test stored once it ends.
+2. **[`test_aws_ssm.py`](./test_aws_ssm.py)** holds the first two tests. In the second, look at the `Act` block: that is everything Envilder does. The Arrange copies the map file with a unique secret path ([`mapfiles.py`](./mapfiles.py)), so no test shares data with another.
+3. **[`test_azure_key_vault.py`](./test_azure_key_vault.py)** is the same test against Key Vault. The emulator plumbing lives in [`localstack_azure.py`](./localstack_azure.py), so skim it. The test itself only changes the map file and the client.
 
 ## The line to look at
 
@@ -66,8 +67,7 @@ You won't need these against real clouds:
 | `aws_access_key_id="test"`, … | LocalStack accepts any credentials |
 | `LOCALSTACK_AUTH_TOKEN` | LocalStack for Azure needs the same token as the AWS emulator, resolved with Envilder |
 | a free host port bound to the same container port, `GATEWAY_LISTEN`, `LOCALSTACK_HOST` | vault URLs embed the gateway port, so both ports must match |
-| `ClientSecretCredential("any-app", "dummy")` with `disable_instance_discovery=True` | the emulator accepts a placeholder service principal (all-zero tenant and subscription) on `https://azure.localhost.localstack.cloud:<port>` |
+| `ClientSecretCredential("any-app", "dummy")` with `disable_instance_discovery=True`, passed to `SecretClient` | the emulator accepts a placeholder service principal (all-zero tenant and subscription) on `https://azure.localhost.localstack.cloud:<port>` |
 | resource group and vault created through ARM | the emulator starts empty, so the test creates the vault and uses the returned `vaultUri` |
-| `IDENTITY_ENDPOINT` / `IDENTITY_HEADER` | a tiny local token endpoint lets `DefaultAzureCredential` work through managed identity, as on an App Service; competing `AZURE_*` variables are cleared while it runs |
 
 TLS verification and Key Vault challenge resource verification stay enabled: the emulator serves a trusted certificate on `*.vault.azure.localhost.localstack.cloud`.
