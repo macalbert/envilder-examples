@@ -76,6 +76,18 @@ Tests: `Should_ResolveSecretFromSsm_When_MapFilePointsToIt` and `Should_ResolveS
 
 > **The one line that differs from production.** In your app you write `Env.ResolveFileAsync("envilder.json")` and Envilder builds the cloud client for you. The tests build that client themselves, aimed at the emulator, and pass it to `EnvilderClient`. Everything after that line is the exact code your app runs.
 
+### Fail fast at startup: contract validation
+
+The Aspire AppHosts resolve `envilder.json` with contract validation on (SDK `1.1.0` or newer). Before reading anything, Envilder checks that the map file is valid and that every secret it declares exists, without reading any value. If the LocalStack token was never pushed, the AppHost stops with an error naming `LOCALSTACK_AUTH_TOKEN` and its path, instead of letting LocalStack exit with a license error:
+
+```csharp
+var environment = await Env.FromMapFile("envilder.json")
+	.WithContractValidation()
+	.ResolveAsync();
+```
+
+The same check returns a result instead of failing with `ValidateContractAsync()` (.NET), `validate_contract()` (Python) or `validateContract()` (Node.js), with one status per variable: `exists`, `missing`, `access_denied`, `authentication_failed` or `provider_error`. It needs `ssm:GetParameters` on the token (or permission to list the vault's secrets with Option B), besides the read permission the resolve already uses.
+
 ## Run any command with its secrets: `envilder exec`
 
 No code at all? [`envilder exec`](https://github.com/macalbert/envilder/blob/main/docs/exec-command.md) resolves the map file and starts a command with the values in its environment. Nothing is written to disk, so there's no `.env` to gitignore or clean up:
@@ -94,6 +106,20 @@ Worth knowing, from the [exec docs](https://github.com/macalbert/envilder/blob/m
 - **Envilder options go first**; the command starts at the first non-option, so `--` is only needed when the command itself starts with a dash. No shell is involved: use `envilder exec sh -c '...'` if you need one.
 - **Not a sandbox.** The command and everything it starts can read the secrets.
 
+## Check before you run: `envilder validate`
+
+[`envilder validate`](https://github.com/macalbert/envilder/blob/main/docs/validate-command.md) is the preflight for `exec` and pull, and the CLI side of the same contract check:
+
+```bash
+# The map file only: JSON, schema, provider settings. No cloud call, no credentials
+npx envilder validate --offline
+
+# Also asks the provider whether every declared secret exists, without reading it
+npx envilder validate
+```
+
+It exits with `0` when every check passes and `1` otherwise, and it never prints a secret value. The [CLI guide](./cli/README.md) walks through both, with a CI example. Comparing a local `.env` with the map file (`--envfile`, `--compare-values`) ships in the next CLI release after `0.20.0`.
+
 ## The examples
 
 | Folder | Stack | Run it (from the folder) |
@@ -103,7 +129,7 @@ Worth knowing, from the [exec docs](https://github.com/macalbert/envilder/blob/m
 | [`dotnet-testcontainers/`](./dotnet-testcontainers) | xUnit v3 + Testcontainers | `dotnet test` |
 | [`dotnet-aspire/`](./dotnet-aspire) | Aspire AppHost + `Aspire.Hosting.Testing` | `cd AppHost.Tests && dotnet test` |
 | [`typescript-aspire/`](./typescript-aspire) | Aspire [TypeScript AppHost](https://devblogs.microsoft.com/aspire/aspire-typescript-apphost/) | `npm install && npm test` * |
-| [`cli/`](./cli) | `npx envilder` push, pull and exec, from a computer with nothing installed | follow the [README](./cli/README.md) |
+| [`cli/`](./cli) | `npx envilder` push, validate, pull and exec, from a computer with nothing installed | follow the [README](./cli/README.md) |
 
 Each folder has its own README with the order to read its files in. Each folder is self-contained: there is no `package.json` at the repo root, so run the command inside the folder. The two .NET examples also share a solution, so `dotnet test` from the repo root runs both.
 
@@ -147,11 +173,17 @@ Install only what the folders you want need:
 
 ### Store your LocalStack token (once)
 
-You need a [LocalStack auth token](https://docs.localstack.cloud/aws/getting-started/auth-token/) in your own cloud. Envilder resolves it from AWS SSM or Azure Key Vault: pick one, write the matching [`envilder.json`](./envilder.json), and push the token with one command.
+You need a [LocalStack auth token](https://docs.localstack.cloud/aws/getting-started/auth-token/) in your own cloud. Envilder resolves it from AWS SSM or Azure Key Vault. Pick one and push the token with one command from the repo root: a single push stores the secret **and** records the mapping in [`envilder.json`](./envilder.json), so you don't write the map file by hand.
 
 #### Option A: AWS SSM Parameter Store (default)
 
 Needs the [AWS CLI](https://aws.amazon.com/cli/) installed and logged in (`aws configure` or `aws sso login`), so Envilder can read and write `/envilder/development/localstack/authToken`.
+
+```bash
+npx envilder --push   --key=LOCALSTACK_AUTH_TOKEN   --value=<your-token>   --secret-path=/envilder/development/localstack/authToken
+```
+
+The committed `envilder.json` already maps `LOCALSTACK_AUTH_TOKEN` to that path, so the push leaves it as it is. Without the file, the push creates it:
 
 ```json
 {
@@ -159,14 +191,7 @@ Needs the [AWS CLI](https://aws.amazon.com/cli/) installed and logged in (`aws c
 }
 ```
 
-```bash
-npx envilder --push \
-  --key=LOCALSTACK_AUTH_TOKEN \
-  --value=<your-token> \
-  --secret-path=/envilder/development/localstack/authToken
-```
-
-Using a named AWS profile? Add it to `$config`, and Envilder uses it for both the push and the tests:
+Using a named AWS profile? Pass `--profile=my-profile` to the push. The push never writes the profile into the map file, so add it to `$config` once, and the tests and AppHosts use it too:
 
 ```json
 {
@@ -177,7 +202,16 @@ Using a named AWS profile? Add it to `$config`, and Envilder uses it for both th
 
 #### Option B: Azure Key Vault
 
-Needs an Azure login (`az login`) with permission to read and write secrets in your vault. Key Vault secret names allow only letters, digits and dashes, so the identifier is a name, not a path:
+Needs an Azure login (`az login`) with permission to read and write secrets in your vault. Key Vault secret names allow only letters, digits and dashes, so the identifier is a name, not a path.
+
+The committed `envilder.json` targets AWS, and a push to Azure won't add its mapping to a map file that points at another provider. Delete it first, then push with the provider and the vault:
+
+```bash
+rm envilder.json
+npx envilder --push   --provider=azure   --vault-url=https://<your-vault>.vault.azure.net   --key=LOCALSTACK_AUTH_TOKEN   --value=<your-token>   --secret-path=localstack-auth-token
+```
+
+The push creates a new `envilder.json` with the Azure `$config`:
 
 ```json
 {
@@ -189,16 +223,15 @@ Needs an Azure login (`az login`) with permission to read and write secrets in y
 }
 ```
 
+#### Check it
+
 ```bash
-npx envilder --push \
-  --key=LOCALSTACK_AUTH_TOKEN \
-  --value=<your-token> \
-  --secret-path=localstack-auth-token
+npx envilder validate
 ```
 
-Run the push from the repo root: the CLI reads `$config` from `envilder.json` and sends the token to your vault.
+It confirms that `envilder.json` is valid and that the token exists, without reading or printing it (see [Check before you run](#check-before-you-run-envilder-validate)).
 
-Nothing else changes. The tests and AppHosts call `Envilder.resolveFile('envilder.json')`, and the `$config` block decides where the token comes from. See [providers](https://envilder.com/#providers).
+Nothing else changes. The tests call `Envilder.resolveFile('envilder.json')`, the AppHosts call `Envilder.fromMapFile('envilder.json').withContractValidation()`, and the `$config` block decides where the token comes from. See [providers](https://envilder.com/#providers) and the [push docs](https://github.com/macalbert/envilder/blob/main/docs/push-command.md#map-file-update).
 
 ## Updating dependencies
 

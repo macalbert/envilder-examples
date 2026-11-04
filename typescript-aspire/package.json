@@ -10,7 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@envilder/sdk": "^1.0.0",
+    "@envilder/sdk": "^1.1.0",
     "vscode-jsonrpc": "^8.2.1"
   },
   "devDependencies": {

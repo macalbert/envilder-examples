@@ -23,7 +23,7 @@ flowchart LR
         azurels["LocalStack for Azure<br/><i>emulated Key Vault</i>"]
     end
 
-    token -- "Env.ResolveFileAsync(#quot;envilder.json#quot;)" --> localstack
+    token -- "Env.FromMapFile(#quot;envilder.json#quot;)<br/>.WithContractValidation()" --> localstack
     token -- "same token" --> azurels
     aws["🧪 AwsSsmTests"] --> localstack
     azure["🧪 AzureKeyVaultTests"] --> azurels
@@ -39,7 +39,7 @@ The tests boot the real AppHost once (`AspireAppFixture`, an assembly fixture), 
 
 ## Read the code in this order
 
-1. **[`AppHost/Program.cs`](./AppHost/Program.cs)** shows the whole integration: a `foreach` over `Env.ResolveFileAsync("envilder.json")` that calls `localstack.WithEnvironment(key, value)`. LocalStack for Azure sits next to it and gets the same token.
+1. **[`AppHost/Program.cs`](./AppHost/Program.cs)** shows the whole integration: a `foreach` over `Env.FromMapFile("envilder.json").WithContractValidation().ResolveAsync()` that calls `localstack.WithEnvironment(key, value)`. LocalStack for Azure sits next to it and gets the same token. `WithContractValidation()` first checks that the token exists in SSM, without reading it, and stops the AppHost with `ContractValidationException` (naming `LOCALSTACK_AUTH_TOKEN` and its path) if it does not, instead of starting LocalStack without a license. That check needs `ssm:GetParameters` on top of the `ssm:GetParameter` the resolve uses.
 2. **[`AppHost.Tests/AwsSsmTests.cs`](./AppHost.Tests/AwsSsmTests.cs)** holds the first two tests. In the second, look at the `Act` block: that is everything Envilder does.
 3. **[`AppHost.Tests/AzureKeyVaultTests.cs`](./AppHost.Tests/AzureKeyVaultTests.cs)** is the same test against Key Vault. Only the map file and the client change.
 4. **[`AppHost.Tests/AspireAppFixture.cs`](./AppHost.Tests/AspireAppFixture.cs)** starts the AppHost and builds clients aimed at the emulators. Skim it.

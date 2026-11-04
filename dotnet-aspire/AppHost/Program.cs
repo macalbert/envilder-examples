@@ -10,7 +10,11 @@ var localstack = builder.AddLocalStack("localstack", configureContainer: contain
 	?? throw new InvalidOperationException(
 		"LocalStack is disabled (LocalStack:UseLocalStack).");
 
-var environment = await Env.ResolveFileAsync("envilder.json");
+// Fails here, naming the variable and the SSM path, if the token was never pushed,
+// instead of letting the emulators start without it.
+var environment = await Env.FromMapFile("envilder.json")
+	.WithContractValidation()
+	.ResolveAsync();
 
 foreach (var (key, value) in environment)
 {
