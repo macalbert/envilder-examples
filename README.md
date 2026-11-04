@@ -183,11 +183,17 @@ Install only what the folders you want need:
 
 ### Store your LocalStack token (once)
 
-You need a [LocalStack auth token](https://docs.localstack.cloud/aws/getting-started/auth-token/) in your own cloud. Envilder resolves it from AWS SSM or Azure Key Vault: pick one, write the matching [`envilder.json`](./envilder.json), and push the token with one command.
+You need a [LocalStack auth token](https://docs.localstack.cloud/aws/getting-started/auth-token/) in your own cloud. Envilder resolves it from AWS SSM or Azure Key Vault. Pick one and push the token with one command from the repo root: a single push stores the secret **and** records the mapping in [`envilder.json`](./envilder.json), so you don't write the map file by hand.
 
 #### Option A: AWS SSM Parameter Store (default)
 
 Needs the [AWS CLI](https://aws.amazon.com/cli/) installed and logged in (`aws configure` or `aws sso login`), so Envilder can read and write `/envilder/development/localstack/authToken`.
+
+```bash
+npx envilder --push   --key=LOCALSTACK_AUTH_TOKEN   --value=<your-token>   --secret-path=/envilder/development/localstack/authToken
+```
+
+The committed `envilder.json` already maps `LOCALSTACK_AUTH_TOKEN` to that path, so the push leaves it as it is. Without the file, the push creates it:
 
 ```json
 {
@@ -195,14 +201,7 @@ Needs the [AWS CLI](https://aws.amazon.com/cli/) installed and logged in (`aws c
 }
 ```
 
-```bash
-npx envilder --push \
-  --key=LOCALSTACK_AUTH_TOKEN \
-  --value=<your-token> \
-  --secret-path=/envilder/development/localstack/authToken
-```
-
-Using a named AWS profile? Add it to `$config`, and Envilder uses it for both the push and the tests:
+Using a named AWS profile? Pass `--profile=my-profile` to the push. The push never writes the profile into the map file, so add it to `$config` once, and the tests and AppHosts use it too:
 
 ```json
 {
@@ -213,7 +212,16 @@ Using a named AWS profile? Add it to `$config`, and Envilder uses it for both th
 
 #### Option B: Azure Key Vault
 
-Needs an Azure login (`az login`) with permission to read and write secrets in your vault. Key Vault secret names allow only letters, digits and dashes, so the identifier is a name, not a path:
+Needs an Azure login (`az login`) with permission to read and write secrets in your vault. Key Vault secret names allow only letters, digits and dashes, so the identifier is a name, not a path.
+
+The committed `envilder.json` targets AWS, and a push to Azure won't add its mapping to a map file that points at another provider. Delete it first, then push with the provider and the vault:
+
+```bash
+rm envilder.json
+npx envilder --push   --provider=azure   --vault-url=https://<your-vault>.vault.azure.net   --key=LOCALSTACK_AUTH_TOKEN   --value=<your-token>   --secret-path=localstack-auth-token
+```
+
+The push creates a new `envilder.json` with the Azure `$config`:
 
 ```json
 {
@@ -225,16 +233,15 @@ Needs an Azure login (`az login`) with permission to read and write secrets in y
 }
 ```
 
+#### Check it
+
 ```bash
-npx envilder --push \
-  --key=LOCALSTACK_AUTH_TOKEN \
-  --value=<your-token> \
-  --secret-path=localstack-auth-token
+npx envilder validate
 ```
 
-Run the push from the repo root: the CLI reads `$config` from `envilder.json` and sends the token to your vault.
+It confirms that `envilder.json` is valid and that the token exists, without reading or printing it (see [Check before you run](#check-before-you-run-envilder-validate)).
 
-Nothing else changes. The tests call `Envilder.resolveFile('envilder.json')`, the AppHosts call `Envilder.fromMapFile('envilder.json').withContractValidation()`, and the `$config` block decides where the token comes from. See [providers](https://envilder.com/#providers).
+Nothing else changes. The tests call `Envilder.resolveFile('envilder.json')`, the AppHosts call `Envilder.fromMapFile('envilder.json').withContractValidation()`, and the `$config` block decides where the token comes from. See [providers](https://envilder.com/#providers) and the [push docs](https://github.com/macalbert/envilder/blob/main/docs/push-command.md#map-file-update).
 
 ## Updating dependencies
 
