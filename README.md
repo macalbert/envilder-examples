@@ -257,6 +257,10 @@ It confirms that `envilder.json` is valid and that the token exists, without rea
 
 Nothing else changes. The tests call `Envilder.resolveFile('envilder.json')`, the AppHosts call `Envilder.fromMapFile('envilder.json').withContractValidation()`, and the `$config` block decides where the token comes from. See [providers](https://envilder.com/#providers) and the [push docs](https://github.com/macalbert/envilder/blob/main/docs/push-command.md#map-file-update).
 
+## Continuous integration
+
+[`.github/workflows/tests.yml`](./.github/workflows/tests.yml) runs every example's tests on each pull request and on `main`, one runner per example so their emulators never share a Docker daemon. Like a developer machine, CI gets the LocalStack token through Envilder from AWS SSM, so the repository needs two secrets: `AWS_ROLE_TO_ASSUME` (an IAM role trusted by GitHub OIDC for this repository, allowed to read `/envilder/development/localstack/authToken`) and `AWS_REGION`. Pull requests from forks cannot get those credentials, so the jobs skip there.
+
 ## Updating dependencies
 
 Versions are pinned in one place per ecosystem, so an upgrade is one command each:
