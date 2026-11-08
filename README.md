@@ -6,6 +6,7 @@ What's inside:
 
 - **Testcontainers and Aspire examples** that hand a LocalStack container its auth token from your real cloud, and resolve map files against emulated SSM and Key Vault ([what the tests prove](#what-the-tests-prove)).
 - **Fail fast at startup** with the SDKs' contract validation ([details](#fail-fast-at-startup-contract-validation)).
+- **Bring your own secret store**: a custom provider over a local encrypted file, with no cloud and no Docker ([how](#bring-your-own-secret-store-a-custom-provider)).
 - **The CLI with nothing installed**: [`envilder exec`](#run-any-command-with-its-secrets-envilder-exec) runs any command with its secrets, and [`envilder validate`](#check-before-you-run-envilder-validate) checks the map file before you run.
 - **CI** that runs every example on each pull request ([how](#continuous-integration)).
 
@@ -36,7 +37,7 @@ That's the entire integration. [Envilder](https://envilder.com) resolves the tok
 
 ## What the tests prove
 
-Every example tells the same two stories.
+Every Testcontainers and Aspire example tells the same two stories (the `*-custom-provider` examples tell a different one, [below](#bring-your-own-secret-store-a-custom-provider)).
 
 ### 1. Envilder hands your containers their secrets
 
@@ -129,6 +130,26 @@ npx envilder validate
 
 It exits with `0` when every check passes and `1` otherwise, and it never prints a secret value. The [CLI guide](./cli/README.md) walks through both, with a CI example. Comparing a local `.env` with the map file (`--envfile`, `--compare-values`) ships in the next CLI release after `0.20.0`.
 
+## Bring your own secret store: a custom provider
+
+AWS SSM and Azure Key Vault are the two providers Envilder ships with, but the SDKs (1.2+) accept any provider you write. `withSecretProvider()` (`with_secret_provider()` in Python, `WithSecretProvider()` in .NET) hands the fluent builder your own instance; the map file, contract validation and injection work exactly as before:
+
+```typescript
+await Envilder.fromMapFile('envilder.vault.json')
+  .withSecretProvider(new LocalVaultProvider(vaultPath, key))
+  .withContractValidation()
+  .inject();
+```
+
+To show it without any cloud, the `*-custom-provider` folders build a deliberately tiny "secret store": a local JSON file whose values are encrypted with AES-256-GCM, and a provider of about 40 lines that reads it. Two methods are all it takes:
+
+| Method | Interface | What Envilder uses it for |
+|--------|-----------|---------------------------|
+| `getSecrets` / `get_secret` / `GetSecret` | `ISecretProvider` | Resolving the values to inject |
+| `checkSecretsExist` / `check_secrets_exist` / `CheckSecretsExistAsync` | `ISecretExistenceChecker` (optional) | Contract validation: checking every key exists **without reading any value** |
+
+The same pattern gives you an in-memory fake for your own tests: no account, no emulator, no environment variables. The local vault is a teaching prop, **not** a secret store to use for real.
+
 ## The examples
 
 | Folder | Stack | Run it (from the folder) |
@@ -138,9 +159,12 @@ It exits with `0` when every check passes and `1` otherwise, and it never prints
 | [`dotnet-testcontainers/`](./dotnet-testcontainers) | xUnit v3 + Testcontainers | `dotnet test` |
 | [`dotnet-aspire/`](./dotnet-aspire) | Aspire AppHost + `Aspire.Hosting.Testing` | `cd AppHost.Tests && dotnet test` |
 | [`typescript-aspire/`](./typescript-aspire) | Aspire [TypeScript AppHost](https://devblogs.microsoft.com/aspire/aspire-typescript-apphost/) | `npm install && npm test` * |
+| [`typescript-custom-provider/`](./typescript-custom-provider) | Vitest, custom provider over a local encrypted vault (no cloud, no Docker) | `npm install && npm test` |
+| [`python-custom-provider/`](./python-custom-provider) | pytest (uv), same custom provider | `uv run pytest` |
+| [`dotnet-custom-provider/`](./dotnet-custom-provider) | xUnit v3, same custom provider | `dotnet test` |
 | [`cli/`](./cli) | `npx envilder` push, validate, pull and exec, from a computer with nothing installed | follow the [README](./cli/README.md) |
 
-Each folder has its own README with the order to read its files in. Each folder is self-contained: there is no `package.json` at the repo root, so run the command inside the folder. The two .NET examples also share a solution, so `dotnet test` from the repo root runs both.
+Each folder has its own README with the order to read its files in. Each folder is self-contained: there is no `package.json` at the repo root, so run the command inside the folder. The .NET examples also share a solution, so `dotnet test` from the repo root runs all of them.
 
 Testcontainers and Aspire are alternative orchestrators; pick the folder that matches your project. (Aspire AppHosts can also orchestrate [Python](https://aspire.dev/integrations/frameworks/python/) and JavaScript apps.)
 
@@ -155,6 +179,7 @@ All examples share the map files at the repo root:
 | [`envilder.json`](./envilder.json) | `LOCALSTACK_AUTH_TOKEN` | your **real** AWS SSM or Azure Key Vault ([options](#store-your-localstack-token-once)) |
 | [`envilder.test.aws.json`](./envilder.test.aws.json) | `DEMO_SECRET` → an SSM path | LocalStack's SSM |
 | [`envilder.test.azure.json`](./envilder.test.azure.json) | `DEMO_SECRET` → a Key Vault secret name | LocalStack for Azure |
+| [`envilder.vault.json`](./envilder.vault.json) | `DB_PASSWORD`, `API_KEY` | the local encrypted vault of the `*-custom-provider` examples |
 
 The two `test` files only differ in `$config.provider` and in the shape of the identifier: SSM uses paths (`/a/b`), Key Vault uses names (`a-b`).
 
@@ -173,10 +198,10 @@ Install only what the folders you want need:
 
 | Tool | Version | Used by |
 |------|---------|---------|
-| [Docker](https://www.docker.com/) | any recent | all |
-| [AWS CLI](https://aws.amazon.com/cli/), logged in | v2 | all (to read the LocalStack token from SSM) |
+| [Docker](https://www.docker.com/) | any recent | all except `*-custom-provider` |
+| [AWS CLI](https://aws.amazon.com/cli/), logged in | v2 | all except `*-custom-provider` (to read the LocalStack token from SSM) |
 | [Node.js](https://nodejs.org/) | 24 LTS or newer (see [`.nvmrc`](./.nvmrc)) | `typescript-*` |
-| [uv](https://docs.astral.sh/uv/) | any recent; it installs Python 3.14 for you | `python-testcontainers` |
+| [uv](https://docs.astral.sh/uv/) | any recent; it installs Python 3.14 for you | `python-*` |
 | [.NET SDK](https://dotnet.microsoft.com/download) | 10.0 (see [`global.json`](./global.json)) | `dotnet-*` |
 | [Aspire CLI](https://aspire.dev/get-started/install-cli/) | 13.5+ | `typescript-aspire` |
 
