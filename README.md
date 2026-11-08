@@ -1,5 +1,14 @@
 # Envilder Examples
 
+Runnable [Envilder](https://envilder.com) examples in **.NET**, **Python** and **TypeScript**. One committed map file says which secrets an app needs; Envilder resolves them from **AWS SSM** or **Azure Key Vault** at runtime, straight into memory. No `.env` file, nothing committed but names and paths.
+
+What's inside:
+
+- **Testcontainers and Aspire examples** that hand a LocalStack container its auth token from your real cloud, and resolve map files against emulated SSM and Key Vault ([what the tests prove](#what-the-tests-prove)).
+- **Fail fast at startup** with the SDKs' contract validation ([details](#fail-fast-at-startup-contract-validation)).
+- **The CLI with nothing installed**: [`envilder exec`](#run-any-command-with-its-secrets-envilder-exec) runs any command with its secrets, and [`envilder validate`](#check-before-you-run-envilder-validate) checks the map file before you run.
+- **CI** that runs every example on each pull request ([how](#continuous-integration)).
+
 How much code does it take to feed a secret from AWS SSM into a LocalStack container, with nothing on disk and nothing committed?
 
 This much:
