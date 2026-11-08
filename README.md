@@ -6,6 +6,7 @@ What's inside:
 
 - **Testcontainers and Aspire examples** that hand a LocalStack container its auth token from your real cloud, and resolve map files against emulated SSM and Key Vault ([what the tests prove](#what-the-tests-prove)).
 - **Fail fast at startup** with the SDKs' contract validation ([details](#fail-fast-at-startup-contract-validation)).
+- **Bring your own secret store**: a custom provider over a local encrypted file, with no cloud and no Docker ([how](#bring-your-own-secret-store-a-custom-provider)).
 - **The CLI with nothing installed**: [`envilder exec`](#run-any-command-with-its-secrets-envilder-exec) runs any command with its secrets, and [`envilder validate`](#check-before-you-run-envilder-validate) checks the map file before you run.
 - **CI** that runs every example on each pull request ([how](#continuous-integration)).
 
