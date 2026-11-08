@@ -25,6 +25,9 @@
     "ssh2": true
   },
   "overrides": {
-    "@azure/msal-node": "^7.1.2"
+    "@azure/msal-node": "^7.1.2",
+    "archiver-utils": {
+      "glob": "^14.0.2"
+    }
   }
 }
