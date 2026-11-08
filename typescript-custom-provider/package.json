@@ -1,0 +1,19 @@
+{
+  "name": "envilder-typescript-custom-provider",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@envilder/sdk": "^1.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}

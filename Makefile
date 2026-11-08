@@ -1,7 +1,7 @@
-.PHONY: test test-typescript-testcontainers test-typescript-aspire test-python-testcontainers test-dotnet-testcontainers test-dotnet-aspire
+.PHONY: test test-typescript-testcontainers test-typescript-aspire test-python-testcontainers test-dotnet-testcontainers test-dotnet-aspire test-typescript-custom-provider test-python-custom-provider test-dotnet-custom-provider
 
 # Runs sequentially on purpose: every example starts its own emulators on the same Docker daemon
-test: test-typescript-testcontainers test-typescript-aspire test-python-testcontainers test-dotnet-testcontainers test-dotnet-aspire
+test: test-typescript-testcontainers test-typescript-aspire test-python-testcontainers test-dotnet-testcontainers test-dotnet-aspire test-typescript-custom-provider test-python-custom-provider test-dotnet-custom-provider
 
 test-typescript-testcontainers:
 	cd typescript-testcontainers && npm install && npm test
@@ -17,3 +17,13 @@ test-dotnet-testcontainers:
 
 test-dotnet-aspire:
 	dotnet test dotnet-aspire/AppHost.Tests
+
+# No Docker or cloud needed: a local encrypted vault behind a custom provider
+test-typescript-custom-provider:
+	cd typescript-custom-provider && npm install && npm test
+
+test-python-custom-provider:
+	cd python-custom-provider && uv run pytest
+
+test-dotnet-custom-provider:
+	dotnet test dotnet-custom-provider

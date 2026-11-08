@@ -3,6 +3,9 @@
     <Project Path="dotnet-aspire/AppHost.Tests/AppHost.Tests.csproj" />
     <Project Path="dotnet-aspire/AppHost/AppHost.csproj" />
   </Folder>
+  <Folder Name="/dotnet-custom-provider/">
+    <Project Path="dotnet-custom-provider/Envilder.Examples.CustomProvider.csproj" />
+  </Folder>
   <Folder Name="/dotnet-testcontainers/">
     <Project Path="dotnet-testcontainers/Envilder.Examples.Tests.csproj" />
   </Folder>

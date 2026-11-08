@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AwesomeAssertions" />
+    <PackageReference Include="Envilder" />
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <!-- The map files live at the repo root, shared by every example -->
+  <ItemGroup>
+    <None Include="../envilder*.json" LinkBase="." CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>
