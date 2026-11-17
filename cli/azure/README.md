@@ -91,8 +91,7 @@ That file now has a secret in clear text: add `.env` to your `.gitignore`.
 
 ### Check the `.env` against the map file
 
-> [!NOTE]
-> `--envfile` and `--compare-values` are merged in Envilder but not released yet: they ship in the next CLI release after `0.20.0`. With `0.20.0`, `validate` rejects them with `unknown option`.
+Needs CLI `0.21.0` or later. Add `--offline` to check only the keys, without calling the store.
 
 ```bash
 npx envilder validate --envfile=.env

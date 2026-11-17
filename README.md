@@ -128,7 +128,7 @@ npx envilder validate --offline
 npx envilder validate
 ```
 
-It exits with `0` when every check passes and `1` otherwise, and it never prints a secret value. The [CLI guide](./cli/README.md) walks through both, with a CI example. Comparing a local `.env` with the map file (`--envfile`, `--compare-values`) ships in the next CLI release after `0.20.0`.
+It exits with `0` when every check passes and `1` otherwise, and it never prints a secret value. The [CLI guide](./cli/README.md) walks through both, with a CI example. Since CLI `0.21.0`, `--envfile` (with `--compare-values`) also compares a local `.env` with the map file, and `--format json` prints a machine-readable report for CI.
 
 ## Bring your own secret store: a custom provider
 
