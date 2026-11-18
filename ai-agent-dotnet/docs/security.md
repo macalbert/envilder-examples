@@ -170,8 +170,8 @@ CODEOWNERS), **O** OS or container, **H** human review.
 | 3 | Rejection of an unapproved mapping change | Partly verified | The CI role is denied any other path (AWS CLI). Not exercised through a pull request. Code-owner approval is not enforced |
 | 4 | No privileged execution from an unreviewed PR | Verified | Run 44330321008 waited in `integration` for approval |
 | 5 | Scoped IAM permissions | Verified | Assumed role: token path readable; other path, `DescribeParameters`, `PutParameter` denied |
-| 6 | Agent-side processes do not inherit cloud credentials | **Unverified** | The reference implementation was built by an agent session with access to the developer's `~/.aws`. The isolated environment A run is still to do |
-| 7 | The agent's actual sandbox and network restrictions | **Unverified** | Pending the environment A run |
+| 6 | Agent-side processes do not inherit cloud credentials | Verified for the container | Inside [`agent-container/`](../agent-container/): no `AWS_*` variables, no `~/.aws`, `envilder exec` exits `125` ([details](agent-workflow.md#environment-a-the-agent)). The reference implementation itself was written outside it, by an agent with access to `~/.aws` |
+| 7 | The agent's actual sandbox and network restrictions | Verified for the container; Claude Code's own sandbox not available there | Egress allowlist and DNS restriction checked three times; bubblewrap cannot create namespaces under Docker's default profile. The agent run itself is still to do |
 
 ## OWASP alignment
 
@@ -181,8 +181,8 @@ CODEOWNERS), **O** OS or container, **H** human review.
 | Scoped, short-lived tokens; no long-lived credentials in the agent environment | CI: OIDC, one-hour session, one parameter | I, G | Verified (check 5) | Local runs use the maintainer's IAM user, which has long-lived access keys |
 | Assume anything in the agent's environment can be exfiltrated | No secret and no `.env` in the workspace; `exec` only in environment B | E, H | No `.env` after runs (verified) | An agent given `exec` permission can read the value |
 | Deny by default, allow explicitly, in committed settings | Project permission settings for the agent | R | See [agent-workflow.md](agent-workflow.md#agent-permissions) | Prompts are not a boundary; isolation is |
-| Sandboxing and isolation; no home directory mounts | Agent in a container without `~/.aws` | O | Pending | Not yet exercised |
-| Restrict network egress | Agent container egress allowlist | O | Pending | CI runners have unrestricted egress |
+| Sandboxing and isolation; no home directory mounts | Agent in a container that mounts only its workspace clone; no Docker socket | O | Check 6 | The agent can read its own Claude Code sign-in token in the container |
+| Restrict network egress | iptables allowlist (HTTPS to six hosts) and a dnsmasq that resolves only those names | O | Check 7 | Allowed hosts are broad services (npm, NuGet, Anthropic): data could still be sent through them, for example by publishing a package. CI runners have unrestricted egress |
 | Treat repository content as untrusted; instruction files under CODEOWNERS | CODEOWNERS for map files, workflows, `infra/`, `AGENTS.md`, `CLAUDE.md`, `.claude/`, skills | G | File present | Code-owner review not required by the ruleset (single maintainer) |
 | Pin versions; vet skills and MCP servers | CLI, skill and NuGet pinned; no MCP server | H | Files present | LocalStack image tag not pinned to a digest |
 | Human approval for privileged and irreversible actions | Required reviewer on `integration`; `exec` on ask; agent never merges | G, R, H | Check 4 | Single maintainer reviews their own agent's work |

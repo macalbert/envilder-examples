@@ -56,14 +56,55 @@ The agent needs, and gets, no cloud credentials and no push rights.
 not available on native Windows, where commands run unsandboxed
 ([sandboxing docs](https://code.claude.com/docs/en/sandboxing)). The sandbox
 covers shell commands and their children, not the built-in file tools, MCP
-servers or hooks. Use one of:
+servers or hooks. This example runs the agent in a container instead:
+[`agent-container/`](../agent-container/), adapted from Anthropic's
+[reference dev container](https://github.com/anthropics/claude-code/tree/main/.devcontainer).
 
-- **A dev container** based on Anthropic's
-  [reference container](https://github.com/anthropics/claude-code/tree/main/.devcontainer)
-  (its `init-firewall.sh` drops outbound traffic except an allowlist), with the
-  repository mounted and **no** mount of `~/.aws`, `~/.ssh` or a GitHub token;
-- **WSL2** with a separate Linux user that has no AWS configuration, plus the
-  sandbox settings below.
+| Property | How | Verified (2026-11-18, three runs) |
+|----------|-----|-----------------------------------|
+| No cloud credentials | Only the workspace is mounted: no `~/.aws`, no `AWS_*` variables, no AWS CLI | `AWS_*` variables 0, `~/.aws` absent, `envilder exec` exits `125` (`Could not load credentials from any providers`) |
+| No push or GitHub access | No `~/.ssh`, no `gh`, no Git remote, GitHub not reachable | remotes 0, `api.github.com` blocked |
+| No Docker | No Docker socket, so the agent cannot start LocalStack or inspect containers | socket absent |
+| Egress allowlist | `init-firewall.sh`: HTTPS only to `api.anthropic.com`, `claude.ai`, `console.anthropic.com`, `platform.claude.com`, `api.nuget.org`, `registry.npmjs.org`. A local dnsmasq resolves only those names; only root can reach the upstream DNS | NuGet and npm 200; AWS SSM, STS, GitHub, example.com blocked; DNS for other names and direct DNS to 8.8.8.8 blocked |
+| Agent cannot lift the firewall | The agent runs as `node`; `sudo` allows only the firewall script, which `node` cannot edit | `sudo` other commands denied, `iptables` denied, script not writable |
+| Offline work possible | `npm ci`, `validate --offline`, unit tests | all exit 0 |
+
+Claude Code's own sandbox (bubblewrap) cannot run inside this container:
+Docker's default profile denies unprivileged user namespaces
+(`bwrap: No permissions to create new namespace`). The container takes its
+place, so the agent starts with a read-only settings layer
+(`/etc/claude-agent/settings.json`, passed with `--settings`) that disables
+only that inner sandbox; the project's permission rules still apply.
+
+Why not the VS Code Dev Containers extension: by default it copies your
+`.gitconfig` and forwards Git credentials and the SSH agent into the
+container, which would hand the agent push rights. The plain `docker run`
+below mounts exactly one folder.
+
+**Run it** (PowerShell, from the repository root). Build the image once:
+
+```powershell
+docker build -t envilder-ai-agent:local ai-agent-dotnet/agent-container
+```
+
+Give the agent its own clone at the baseline commit, with no remote:
+
+```powershell
+git clone --no-hardlinks . ..\envilder-examples-agent-run; git -C ..\envilder-examples-agent-run checkout -b agent/document-storage 946472e; git -C ..\envilder-examples-agent-run remote remove origin
+```
+
+Start the agent (the first time, sign in to Claude Code when it asks; the
+sign-in is kept in the `envilder-agent-claude` volume):
+
+```powershell
+docker run -it --rm --name envilder-agent --cap-add=NET_ADMIN --cap-add=NET_RAW -v "${PWD}\..\envilder-examples-agent-run:/workspace" -v envilder-agent-claude:/home/node/.claude envilder-ai-agent:local bash -c "sudo /usr/local/bin/init-firewall.sh && claude --settings /etc/claude-agent/settings.json"
+```
+
+`NET_ADMIN` and `NET_RAW` are needed by the firewall script, which runs as
+root; the agent's own processes run as `node` without those capabilities.
+The Claude Code sign-in token lives in that volume and is readable by the
+agent: it is the agent's own identity, reachable only through the allowed
+Anthropic hosts.
 
 **Agent permissions.** [`.claude/settings.json`](../.claude/settings.json) is
 committed and reviewed like code (it is under CODEOWNERS):
