@@ -1,0 +1,88 @@
+name: ai-agent-dotnet
+
+# Two trust levels for the AI agent example:
+#   offline      every pull request, no cloud credentials and no secret: build,
+#                unit tests and the Envilder contract checked with --offline.
+#   integration  privileged: resolves the LocalStack token through envilder exec.
+#                It runs in the protected "integration" environment, so a
+#                maintainer reviews the code and approves each run before the
+#                job gets the OIDC role (infra/integration-test-role.yml), which
+#                can read only that one parameter.
+
+on:
+  pull_request:
+    paths:
+      - ai-agent-dotnet/**
+      - Directory.Build.props
+      - Directory.Packages.props
+      - global.json
+      - .github/workflows/ai-agent-dotnet.yml
+  push:
+    branches: [main]
+    paths:
+      - ai-agent-dotnet/**
+      - Directory.Build.props
+      - Directory.Packages.props
+      - global.json
+      - .github/workflows/ai-agent-dotnet.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-agent-dotnet-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: ai-agent-dotnet
+
+jobs:
+  offline:
+    name: Build, unit tests, offline contract check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: ai-agent-dotnet/package-lock.json
+      - run: npm ci
+      - name: Validate the Envilder contract (no provider call)
+        run: npx --no envilder validate --offline --map=envilder.json
+      - run: dotnet build tests/DocumentStorage.IntegrationTests
+      - run: dotnet test --project tests/DocumentStorage.UnitTests
+
+  integration:
+    name: Integration tests through envilder exec
+    needs: offline
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork }}
+    runs-on: ubuntu-latest
+    environment: integration
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: ai-agent-dotnet/package-lock.json
+      - uses: aws-actions/configure-aws-credentials@v6.3.0
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - run: npm ci
+      - name: Run the integration tests with the token resolved by Envilder
+        run: npx --no envilder exec --map=envilder.json -- dotnet test --project tests/DocumentStorage.IntegrationTests
