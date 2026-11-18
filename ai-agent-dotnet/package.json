@@ -1,0 +1,12 @@
+{
+  "name": "ai-agent-dotnet",
+  "private": true,
+  "description": "Pins the Envilder CLI for this example, so npx --no envilder runs a reviewed version instead of downloading one",
+  "scripts": {
+    "validate:offline": "envilder validate --offline --map=envilder.json",
+    "test:integration": "envilder exec --map=envilder.json -- dotnet test tests/DocumentStorage.IntegrationTests"
+  },
+  "devDependencies": {
+    "envilder": "0.22.0"
+  }
+}

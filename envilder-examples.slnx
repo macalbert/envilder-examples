@@ -1,4 +1,9 @@
 <Solution>
+  <Folder Name="/ai-agent-dotnet/">
+    <Project Path="ai-agent-dotnet/src/DocumentStorage.Api/DocumentStorage.Api.csproj" />
+    <Project Path="ai-agent-dotnet/tests/DocumentStorage.IntegrationTests/DocumentStorage.IntegrationTests.csproj" />
+    <Project Path="ai-agent-dotnet/tests/DocumentStorage.UnitTests/DocumentStorage.UnitTests.csproj" />
+  </Folder>
   <Folder Name="/dotnet-aspire/">
     <Project Path="dotnet-aspire/AppHost.Tests/AppHost.Tests.csproj" />
     <Project Path="dotnet-aspire/AppHost/AppHost.csproj" />
