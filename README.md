@@ -8,6 +8,7 @@ What's inside:
 - **Fail fast at startup** with the SDKs' contract validation ([details](#fail-fast-at-startup-contract-validation)).
 - **Bring your own secret store**: a custom provider over a local encrypted file, with no cloud and no Docker ([how](#bring-your-own-secret-store-a-custom-provider)).
 - **The CLI with nothing installed**: [`envilder exec`](#run-any-command-with-its-secrets-envilder-exec) runs any command with its secrets, and [`envilder validate`](#check-before-you-run-envilder-validate) checks the map file before you run.
+- **AI coding agents**: a .NET 10 S3 document API built test first, whose integration tests get their secret through `envilder exec`, with the agent kept away from secret values and cloud credentials ([`ai-agent-dotnet`](./ai-agent-dotnet/README.md)).
 - **CI** that runs every example on each pull request ([how](#continuous-integration)).
 
 How much code does it take to feed a secret from AWS SSM into a LocalStack container, with nothing on disk and nothing committed?
