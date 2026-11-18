@@ -6,7 +6,7 @@ security reasoning behind each step is in [security.md](security.md).
 
 ## The prompt
 
-Start the agent at the baseline commit of this example (`ee0950e`: empty API,
+Start the agent at the baseline commit of this example (`946472e`, "feat: add the ai-agent-dotnet baseline": empty API,
 empty test projects, `envilder.json`, the pinned CLI and skill) and give it
 this task:
 
@@ -137,7 +137,7 @@ environment, the transcript export, and these observations:
 No video has been recorded. This is the plan for a real session.
 
 **Before recording (not shown):** build the environment A container or WSL2
-user; sign in to Claude Code there; check out `ee0950e` on a new branch; run
+user; sign in to Claude Code there; check out `946472e` on a new branch; run
 `npm ci` once; confirm `aws sts get-caller-identity` fails inside the agent
 environment (no credentials); on the host, confirm AWS access for the
 maintainer and that Docker runs.
