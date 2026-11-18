@@ -5,10 +5,16 @@ name: Tests
 # sequentially locally for the same reason).
 #
 # The examples fetch the LocalStack auth token from AWS SSM through Envilder,
-# exactly as on a developer machine, so CI needs AWS credentials:
-#   - secret AWS_ROLE_TO_ASSUME: an IAM role trusted by GitHub OIDC for this
-#     repository, allowed ssm:GetParameter (and kms:Decrypt for a SecureString)
-#     on /envilder/development/localstack/authToken
+# exactly as on a developer machine, so these jobs get AWS credentials. That
+# makes them privileged: the code they run can read the token. Every job that
+# assumes the role therefore runs in the "integration" environment, which has
+# required reviewers. A maintainer approves each run after reviewing the code
+# it will execute, so unreviewed changes (a contributor's or an AI coding
+# agent's) never run with the credentials on their own.
+#
+#   - secret AWS_ROLE_TO_ASSUME: the role from infra/integration-test-role.yml.
+#     Its trust policy accepts only this repository's "integration"
+#     environment, and it can read only /envilder/development/localstack/authToken
 #   - secret AWS_REGION: the region that holds that parameter
 # Pull requests from forks cannot get those credentials, so the jobs skip there.
 
@@ -31,6 +37,7 @@ jobs:
     name: TypeScript + Testcontainers
     if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork }}
     runs-on: ubuntu-latest
+    environment: integration
     timeout-minutes: 20
     defaults:
       run:
@@ -53,6 +60,7 @@ jobs:
     name: TypeScript + Aspire
     if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork }}
     runs-on: ubuntu-latest
+    environment: integration
     timeout-minutes: 30
     defaults:
       run:
@@ -82,6 +90,7 @@ jobs:
     name: Python + Testcontainers
     if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork }}
     runs-on: ubuntu-latest
+    environment: integration
     timeout-minutes: 20
     defaults:
       run:
@@ -102,6 +111,7 @@ jobs:
     name: .NET + Testcontainers
     if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork }}
     runs-on: ubuntu-latest
+    environment: integration
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
@@ -118,6 +128,7 @@ jobs:
     name: .NET + Aspire
     if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork }}
     runs-on: ubuntu-latest
+    environment: integration
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
