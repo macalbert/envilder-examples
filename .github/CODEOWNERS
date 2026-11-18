@@ -1,0 +1,13 @@
+# Files that decide which secrets are resolved, which credentials CI gets, or
+# what AI coding agents are told to do. A change to any of them needs a code
+# owner's review (enforced by the ruleset on main).
+envilder*.json @macalbert
+**/envilder*.json @macalbert
+/.github/ @macalbert
+/infra/ @macalbert
+AGENTS.md @macalbert
+**/AGENTS.md @macalbert
+CLAUDE.md @macalbert
+**/CLAUDE.md @macalbert
+/.claude/ @macalbert
+**/SKILL.md @macalbert

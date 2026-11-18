@@ -269,7 +269,25 @@ Nothing else changes. The tests call `Envilder.resolveFile('envilder.json')`, th
 
 ## Continuous integration
 
-[`.github/workflows/tests.yml`](./.github/workflows/tests.yml) runs every example's tests on each pull request and on `main`, one runner per example so their emulators never share a Docker daemon. Like a developer machine, CI gets the LocalStack token through Envilder from AWS SSM, so the repository needs two secrets: `AWS_ROLE_TO_ASSUME` (an IAM role trusted by GitHub OIDC for this repository, allowed to read `/envilder/development/localstack/authToken`) and `AWS_REGION`. Pull requests from forks cannot get those credentials, so the jobs skip there.
+[`.github/workflows/tests.yml`](./.github/workflows/tests.yml) runs every example's tests on each pull request and on `main`, one runner per example so their emulators never share a Docker daemon. Like a developer machine, CI gets the LocalStack token through Envilder from AWS SSM, so the repository needs two secrets: `AWS_ROLE_TO_ASSUME` and `AWS_REGION`. Pull requests from forks cannot get those credentials, so the jobs skip there.
+
+Those jobs run code that can read the token, so they are privileged and gated:
+
+- **A maintainer approves every run.** Each job that gets AWS credentials runs in the `integration` [GitHub environment](https://docs.github.com/en/actions/managing-workflow-runs-and-deployments/managing-deployments/managing-environments-for-deployment), which has required reviewers. Review the code a run will execute before approving it: an approved run can read the token. Unreviewed changes, from a contributor or an AI coding agent, never run with the credentials on their own.
+- **The role can read one parameter and nothing else.** [`infra/integration-test-role.yml`](./infra/integration-test-role.yml) defines it: `ssm:GetParameter` and `ssm:GetParameters` on `/envilder/development/localstack/authToken` only, assumable through OIDC only from this repository's `integration` environment. Local runs use your own AWS identity, as everywhere else in this README.
+- **Sensitive files need a code owner's review.** [`.github/CODEOWNERS`](./.github/CODEOWNERS) covers map files, workflows, infrastructure and agent instruction files.
+
+Deploy or update the role (PowerShell, in the account that holds the parameter):
+
+```powershell
+aws cloudformation deploy --stack-name envilder-examples-integration-tests --template-file infra/integration-test-role.yml --capabilities CAPABILITY_NAMED_IAM --parameter-overrides OidcProviderArn=arn:aws:iam::<account-id>:oidc-provider/token.actions.githubusercontent.com
+```
+
+Then store the stack's `RoleArn` output as the `AWS_ROLE_TO_ASSUME` secret of the `integration` environment (not of the repository), so only approved jobs receive it:
+
+```powershell
+gh secret set AWS_ROLE_TO_ASSUME --env integration --body <role-arn>
+```
 
 ## Updating dependencies
 

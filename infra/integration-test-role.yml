@@ -1,0 +1,65 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Read-only role for the envilder-examples integration tests. It can read one
+  SSM parameter (the LocalStack auth token) and nothing else. GitHub Actions
+  assumes it through OIDC only from jobs that run in the protected
+  "integration" environment (a maintainer approves each run after reviewing
+  the code it will execute). Local runs use the maintainer's own identity.
+
+Parameters:
+  GitHubRepository:
+    Type: String
+    Default: macalbert/envilder-examples
+    Description: owner/name of the repository allowed to assume the role
+  GitHubEnvironment:
+    Type: String
+    Default: integration
+    Description: GitHub environment (with required reviewers) whose jobs may assume the role
+  OidcProviderArn:
+    Type: String
+    Description: ARN of the existing IAM OIDC provider for token.actions.githubusercontent.com
+  TokenParameterName:
+    Type: String
+    Default: /envilder/development/localstack/authToken
+    Description: The only SSM parameter the role can read
+
+Resources:
+  IntegrationTestRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: envilder-examples-integration-tests
+      Description: Reads the LocalStack auth token for envilder-examples integration tests
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: GitHubActionsReviewedRuns
+            Effect: Allow
+            Principal:
+              Federated: !Ref OidcProviderArn
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubRepository}:environment:${GitHubEnvironment}
+      Policies:
+        - PolicyName: read-localstack-token
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # GetParameter: envilder exec and the SDKs read the value.
+              # GetParameters: envilder validate checks existence (no decryption).
+              # The parameter is a SecureString under the AWS managed key
+              # alias/aws/ssm, whose key policy already allows decryption
+              # through SSM for principals of this account: no kms:Decrypt here.
+              - Sid: ReadOneParameter
+                Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                  - ssm:GetParameters
+                Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${TokenParameterName}
+
+Outputs:
+  RoleArn:
+    Description: Value for the AWS_ROLE_TO_ASSUME secret of the integration environment
+    Value: !GetAtt IntegrationTestRole.Arn
