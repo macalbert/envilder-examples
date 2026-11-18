@@ -10,7 +10,9 @@ public sealed class HealthEndpointTests : IAsyncLifetime
 
 	public ValueTask InitializeAsync()
 	{
-		_factory = new WebApplicationFactory<Program>();
+		// The app validates its configuration at startup; no AWS call happens until a document is stored.
+		_factory = new WebApplicationFactory<Program>()
+			.WithWebHostBuilder(builder => builder.UseSetting("DocumentStorage:BucketName", "unit-tests"));
 		return ValueTask.CompletedTask;
 	}
 
