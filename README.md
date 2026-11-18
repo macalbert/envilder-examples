@@ -283,7 +283,11 @@ Deploy or update the role (PowerShell, in the account that holds the parameter):
 aws cloudformation deploy --stack-name envilder-examples-integration-tests --template-file infra/integration-test-role.yml --capabilities CAPABILITY_NAMED_IAM --parameter-overrides OidcProviderArn=arn:aws:iam::<account-id>:oidc-provider/token.actions.githubusercontent.com LocalPrincipalArn=<your-iam-principal-arn>
 ```
 
-Then set the `AWS_ROLE_TO_ASSUME` secret to the stack's `RoleArn` output.
+Then store the stack's `RoleArn` output as the `AWS_ROLE_TO_ASSUME` secret of the `integration` environment (not of the repository), so only approved jobs receive it:
+
+```powershell
+gh secret set AWS_ROLE_TO_ASSUME --env integration --body <role-arn>
+```
 
 ## Updating dependencies
 
