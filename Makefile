@@ -1,7 +1,7 @@
-.PHONY: test test-typescript-testcontainers test-typescript-aspire test-python-testcontainers test-dotnet-testcontainers test-dotnet-aspire test-typescript-custom-provider test-python-custom-provider test-dotnet-custom-provider
+.PHONY: test test-ai-agent-dotnet test-typescript-testcontainers test-typescript-aspire test-python-testcontainers test-dotnet-testcontainers test-dotnet-aspire test-typescript-custom-provider test-python-custom-provider test-dotnet-custom-provider
 
 # Runs sequentially on purpose: every example starts its own emulators on the same Docker daemon
-test: test-typescript-testcontainers test-typescript-aspire test-python-testcontainers test-dotnet-testcontainers test-dotnet-aspire test-typescript-custom-provider test-python-custom-provider test-dotnet-custom-provider
+test: test-typescript-testcontainers test-typescript-aspire test-python-testcontainers test-dotnet-testcontainers test-dotnet-aspire test-typescript-custom-provider test-python-custom-provider test-dotnet-custom-provider test-ai-agent-dotnet
 
 test-typescript-testcontainers:
 	cd typescript-testcontainers && npm install && npm test
@@ -27,3 +27,7 @@ test-python-custom-provider:
 
 test-dotnet-custom-provider:
 	dotnet test dotnet-custom-provider
+
+# Unit tests and the offline contract check need nothing; the integration tests get the LocalStack token through envilder exec
+test-ai-agent-dotnet:
+	cd ai-agent-dotnet && npm ci && npx --no envilder validate --offline --map=envilder.json && dotnet test --project tests/DocumentStorage.UnitTests && npx --no envilder exec --map=envilder.json -- dotnet test --project tests/DocumentStorage.IntegrationTests
