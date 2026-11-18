@@ -4,8 +4,7 @@ Description: >-
   SSM parameter (the LocalStack auth token) and nothing else. GitHub Actions
   assumes it through OIDC only from jobs that run in the protected
   "integration" environment (a maintainer approves each run after reviewing
-  the code it will execute); maintainers assume it locally from
-  their own IAM principal for short-lived, scoped credentials.
+  the code it will execute). Local runs use the maintainer's own identity.
 
 Parameters:
   GitHubRepository:
@@ -19,9 +18,6 @@ Parameters:
   OidcProviderArn:
     Type: String
     Description: ARN of the existing IAM OIDC provider for token.actions.githubusercontent.com
-  LocalPrincipalArn:
-    Type: String
-    Description: IAM principal (user or role) of the maintainer allowed to assume the role locally
   TokenParameterName:
     Type: String
     Default: /envilder/development/localstack/authToken
@@ -46,11 +42,6 @@ Resources:
               StringEquals:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
                 token.actions.githubusercontent.com:sub: !Sub repo:${GitHubRepository}:environment:${GitHubEnvironment}
-          - Sid: MaintainerLocalRuns
-            Effect: Allow
-            Principal:
-              AWS: !Ref LocalPrincipalArn
-            Action: sts:AssumeRole
       Policies:
         - PolicyName: read-localstack-token
           PolicyDocument:
@@ -70,5 +61,5 @@ Resources:
 
 Outputs:
   RoleArn:
-    Description: Value for the AWS_ROLE_TO_ASSUME repository secret and the local AWS profile
+    Description: Value for the AWS_ROLE_TO_ASSUME secret of the integration environment
     Value: !GetAtt IntegrationTestRole.Arn
